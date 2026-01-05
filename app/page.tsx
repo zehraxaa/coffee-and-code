@@ -44,6 +44,11 @@ export default function Home() {
     }
   }, [darkMode])
 
+  useEffect(() => {
+    // Scroll to top when tab changes
+    window.scrollTo({ top: 0, behavior: "smooth" })
+  }, [activeTab])
+
   const handlePlaceOrder = (orderData: Omit<Order, "id" | "timestamp">) => {
     const newOrder: Order = {
       ...orderData,

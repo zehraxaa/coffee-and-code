@@ -13,4 +13,5 @@ export interface Order {
   status: OrderStatus
   rating?: number
   review?: string
+  price?: string
 }

@@ -29,6 +29,11 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
     setSyrups((prev) => (prev.includes(syrup) ? prev.filter((s) => s !== syrup) : [...prev, syrup]))
   }
 
+  const calculatePrice = (): string => {
+    // Fixed price for all orders
+    return "100 TL"
+  }
+
   const handlePlaceOrder = () => {
     const order: Omit<Order, "id" | "timestamp"> = {
       itemName: preselectedItem?.name,
@@ -39,6 +44,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
       cupType,
       syrups,
       status: "received",
+      price: calculatePrice(),
     }
     onPlaceOrder(order)
   }

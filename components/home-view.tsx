@@ -57,9 +57,9 @@ export function HomeView({
   ]
 
   const favorites = [
-    { id: 1, name: "Caramel Latte", price: "$4.50", rating: 4.8 },
-    { id: 2, name: "Vanilla Cappuccino", price: "$4.00", rating: 4.9 },
-    { id: 3, name: "Mocha Frappuccino", price: "$5.50", rating: 4.7 },
+    { id: 1, name: "Caramel Latte", price: "100 TL", rating: 4.8 },
+    { id: 2, name: "Vanilla Cappuccino", price: "100 TL", rating: 4.9 },
+    { id: 3, name: "Mocha Frappuccino", price: "100 TL", rating: 4.7 },
   ]
 
   const coffeeOfMonth = {

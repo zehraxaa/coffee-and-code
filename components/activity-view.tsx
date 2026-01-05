@@ -92,6 +92,11 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                 <p className="text-muted-foreground">
                   <span className="font-medium text-foreground">Milk:</span> {order.milkType}
                 </p>
+                {order.price && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Price:</span> {order.price}
+                  </p>
+                )}
                 {order.syrups.length > 0 && (
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Syrups:</span> {order.syrups.join(", ")}

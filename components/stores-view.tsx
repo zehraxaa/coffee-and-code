@@ -8,35 +8,31 @@ import { useState } from "react"
 const storesList = [
   {
     id: 1,
-    name: "Downtown Brew",
-    address: "123 Main St, Downtown",
+    name: "Coffee & Code Üsküdar (Center)",
+    address: "Bağlarbaşı, Üsküdar",
     phone: "(555) 123-4567",
-    hours: "7:00 AM - 8:00 PM",
-    distance: "0.5 mi",
+    hours: "8:00 AM - 8:00 PM",
   },
   {
     id: 2,
-    name: "Uptown Coffee",
-    address: "456 Park Ave, Uptown",
+    name: "Coffee & Code Kadıköy",
+    address: "Kadıköy",
     phone: "(555) 234-5678",
-    hours: "6:00 AM - 9:00 PM",
-    distance: "1.2 mi",
+    hours: "8:00 AM - 9:00 PM",
   },
   {
     id: 3,
-    name: "Riverside Cafe",
-    address: "789 River Rd, Riverside",
+    name: "Coffee & Code Beşiktaş",
+    address: "Beşiktaş",
     phone: "(555) 345-6789",
     hours: "7:30 AM - 7:00 PM",
-    distance: "2.1 mi",
   },
   {
     id: 4,
-    name: "Campus Brew Co.",
-    address: "321 University Blvd",
+    name: "Coffee & Code Maltepe",
+    address: "Maltepe",
     phone: "(555) 456-7890",
     hours: "6:30 AM - 10:00 PM",
-    distance: "3.0 mi",
   },
 ]
 
@@ -71,7 +67,6 @@ export function StoresView() {
                 <div className="flex items-start justify-between">
                   <div>
                     <h3 className="text-lg font-semibold text-foreground">{store.name}</h3>
-                    <p className="text-sm text-muted-foreground">{store.distance} away</p>
                   </div>
                   <MapPin className="h-5 w-5 text-primary" />
                 </div>

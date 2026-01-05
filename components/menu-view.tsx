@@ -24,33 +24,33 @@ export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
       id: "latte",
       name: "Latte",
       description: "Espresso with steamed milk and light foam",
-      price: "$4.50",
+      price: "100 TL",
       popular: true,
     },
     {
       id: "americano",
       name: "Americano",
       description: "Espresso with hot water",
-      price: "$3.50",
+      price: "100 TL",
     },
     {
       id: "cappuccino",
       name: "Cappuccino",
       description: "Equal parts espresso, steamed milk, and foam",
-      price: "$4.00",
+      price: "100 TL",
       popular: true,
     },
     {
       id: "mocha",
       name: "Mocha",
       description: "Espresso with chocolate and steamed milk",
-      price: "$5.00",
+      price: "100 TL",
     },
     {
       id: "espresso",
       name: "Espresso",
       description: "Classic Italian coffee shot",
-      price: "$3.00",
+      price: "100 TL",
     },
   ]
 

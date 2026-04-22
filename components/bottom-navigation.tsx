@@ -1,6 +1,6 @@
 "use client"
 
-import { Home, MapPin, ClipboardList, Settings, User } from "lucide-react"
+import { Home, MapPin, ClipboardList, User, Coffee } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 interface BottomNavigationProps {
@@ -12,8 +12,8 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
   const navItems = [
     { id: "home", label: "Home", icon: Home },
     { id: "stores", label: "Stores", icon: MapPin },
+    { id: "menu", label: "Menu", icon: Coffee, special: true },
     { id: "activity", label: "Orders", icon: ClipboardList },
-    { id: "settings", label: "Settings", icon: Settings },
     { id: "account", label: "Account", icon: User },
   ]
 
@@ -23,6 +23,20 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id
+          
+          if (item.special) {
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id)}
+                className="relative -top-5 flex h-16 w-16 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+              >
+                <Icon size={28} />
+                <span className="mt-1 text-[10px] font-bold">{item.label}</span>
+              </button>
+            )
+          }
+
           return (
             <button
               key={item.id}

@@ -22,6 +22,7 @@ import type { Order, OrderStatus } from "@/lib/types"
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
   const [activeTab, setActiveTab] = useState("home")
+  const [hasSeenPromo, setHasSeenPromo] = useState(false)
   const [orders, setOrders] = useState<Order[]>([])
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
@@ -183,14 +184,12 @@ export default function Home() {
         <main className="mx-auto max-w-md p-4">
           {activeTab === "home" && (
             <HomeView
-              onCreateCustomOrder={() => {
-                setSelectedMenuItem(null)
-                setActiveTab("order")
-              }}
+              hasSeenPromo={hasSeenPromo}
+              onPromoClosed={() => setHasSeenPromo(true)}
               onViewFullMenu={() => setActiveTab("menu")}
               loyaltyStamps={loyaltyStamps}
               onOrderCoffeeOfMonth={() => {
-                setSelectedMenuItem({ name: "Spanish Latte", price: "$4.50" })
+                setSelectedMenuItem({ name: "Spanish Latte", price: "120TL" })
                 setActiveTab("order")
               }}
               onOrderFavorite={(item) => handleMenuItemSelect(item)}
@@ -206,10 +205,10 @@ export default function Home() {
           {activeTab === "menu" && <MenuView onBack={() => setActiveTab("home")} onSelectItem={handleMenuItemSelect} />}
           {activeTab === "stores" && <StoresView />}
           {activeTab === "activity" && <ActivityView orders={orders} onRateOrder={handleRateOrder} />}
-          {activeTab === "settings" && (
+          {activeTab === "account" && (
             <div className="space-y-6">
-              <h1 className="text-2xl font-bold text-foreground">Settings</h1>
-
+              <h1 className="text-2xl font-bold text-foreground">Account & Settings</h1>
+              
               <div className="space-y-4">
                 <div className="flex items-center justify-between rounded-lg bg-card p-4">
                   <Label htmlFor="dark-mode" className="font-medium text-foreground">
@@ -218,62 +217,45 @@ export default function Home() {
                   <Switch id="dark-mode" checked={darkMode} onCheckedChange={setDarkMode} />
                 </div>
 
-                <Button
-                  variant="outline"
-                  className="w-full justify-start bg-card text-foreground"
-                  onClick={handleOpenAccountSettings}
-                >
-                  Manage Account
-                </Button>
+                {isLoggedIn ? (
+                  <>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-card text-foreground"
+                      onClick={handleOpenAccountSettings}
+                    >
+                      Manage Account
+                    </Button>
 
-                <Button
-                  variant="outline"
-                  className="w-full justify-start bg-card text-foreground"
-                  onClick={handleOpenPasswordSettings}
-                >
-                  Change Password
-                </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-card text-foreground"
+                      onClick={handleOpenPasswordSettings}
+                    >
+                      Change Password
+                    </Button>
 
-                {isLoggedIn && (
-                  <Button
-                    variant="outline"
-                    className="w-full justify-start bg-card text-destructive hover:bg-destructive/10"
-                    onClick={() => {
-                      setIsLoggedIn(false)
-                      toast({ title: "Signed Out", description: "You've been signed out successfully." })
-                    }}
-                  >
-                    Log Out
-                  </Button>
+                    <Button
+                      variant="outline"
+                      className="w-full justify-start bg-card text-destructive hover:bg-destructive/10"
+                      onClick={() => {
+                        setIsLoggedIn(false)
+                        toast({ title: "Signed Out", description: "You've been signed out successfully." })
+                      }}
+                    >
+                      Log Out
+                    </Button>
+                  </>
+                ) : (
+                  <div className="mt-8 rounded-lg border border-border p-4 text-center">
+                    <h3 className="mb-2 font-medium text-foreground">Sign In for More Features</h3>
+                    <p className="mb-4 text-sm text-muted-foreground">Track your orders, earn rewards, and manage your account.</p>
+                    <Button className="w-full bg-primary text-primary-foreground" onClick={() => setAuthDialogOpen(true)}>
+                      Sign In
+                    </Button>
+                  </div>
                 )}
               </div>
-            </div>
-          )}
-          {activeTab === "account" && (
-            <div className="space-y-6">
-              <h1 className="text-2xl font-bold text-foreground">Account</h1>
-              {isLoggedIn ? (
-                <div>
-                  <p className="text-muted-foreground">You're logged in!</p>
-                  <Button
-                    variant="outline"
-                    className="mt-4 bg-transparent"
-                    onClick={() => {
-                      setIsLoggedIn(false)
-                      toast({ title: "Signed Out", description: "You've been signed out successfully." })
-                    }}
-                  >
-                    Sign Out
-                  </Button>
-                </div>
-              ) : (
-                <div>
-                  <p className="text-muted-foreground">Sign in to track your orders and earn rewards.</p>
-                  <Button className="mt-4 bg-primary text-primary-foreground" onClick={() => setAuthDialogOpen(true)}>
-                    Sign In
-                  </Button>
-                </div>
-              )}
             </div>
           )}
         </main>

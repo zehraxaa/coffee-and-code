@@ -98,11 +98,11 @@ export function BaristaDashboard({ orders, onUpdateOrderStatus }: BaristaDashboa
                   <div className="mt-4 space-y-2 rounded-lg bg-muted/50 p-4 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Coffee Strength:</span>
-                      <span className="font-medium text-foreground">{order.coffeeStrength}/10</span>
+                      <span className="font-medium text-foreground capitalize">{order.coffeeStrength}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Sugar Level:</span>
-                      <span className="font-medium text-foreground">{order.sugarLevel}/10</span>
+                      <span className="font-medium text-foreground">{order.sugarLevel}/5</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Shot:</span>

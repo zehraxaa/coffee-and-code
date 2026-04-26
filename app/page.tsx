@@ -1,7 +1,8 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
 import { SplashScreen } from "@/components/splash-screen"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { HomeView } from "@/components/home-view"
@@ -14,6 +15,7 @@ import { MenuView } from "@/components/menu-view"
 import { OrderReadyNotification } from "@/components/order-ready-notification"
 import { StoresView } from "@/components/stores-view"
 import { SettingsDialog } from "@/components/settings-dialog"
+import { LoyaltyPromptDialog } from "@/components/loyalty-prompt-dialog"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -23,7 +25,7 @@ export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
   const [activeTab, setActiveTab] = useState("home")
   const [hasSeenPromo, setHasSeenPromo] = useState(false)
-  const [orders, setOrders] = useState<Order[]>([])
+  const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
@@ -35,6 +37,8 @@ export default function Home() {
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsDialogType, setSettingsDialogType] = useState<"account" | "password">("account")
   const [darkMode, setDarkMode] = useState(false)
+  const [pendingOrder, setPendingOrder] = useState<Omit<Order, "id" | "timestamp"> | null>(null)
+  const [showLoyaltyPrompt, setShowLoyaltyPrompt] = useState(false)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -50,52 +54,79 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [activeTab])
 
-  const handlePlaceOrder = (orderData: Omit<Order, "id" | "timestamp">) => {
+  // Siparişi fiilen yerleştiren yardımcı fonksiyon
+  const confirmPlaceOrder = (orderData: Omit<Order, "id" | "timestamp">, isGuest: boolean) => {
     const newOrder: Order = {
       ...orderData,
       id: crypto.randomUUID(),
       timestamp: new Date(),
+      isGuest,
     }
-    setOrders((prev) => [newOrder, ...prev])
+    broadcastPlaceOrder(newOrder)
     setActiveTab("activity")
-
     toast({
       title: "Order Placed! 🎉",
       description: "Your order has been received.",
     })
-
     setSelectedMenuItem(null)
+    setPendingOrder(null)
+  }
+
+  const handlePlaceOrder = (orderData: Omit<Order, "id" | "timestamp">) => {
+    if (isLoggedIn) {
+      // Giriş yapılmış — direkt siparişi ver, damga kazanacak
+      confirmPlaceOrder(orderData, false)
+    } else {
+      // Giriş yapılmamış — loyalty seçeneği sun
+      setPendingOrder(orderData)
+      setShowLoyaltyPrompt(true)
+    }
+  }
+
+  const handleLoyaltySignIn = () => {
+    // pendingOrder kayıtlı kalır; kullanıcı account sekmesinden giriş yapacak
+    setShowLoyaltyPrompt(false)
+    setActiveTab("account")
+  }
+
+  const handleLoyaltySkip = () => {
+    // Tek seferlik müşteri — damga yok
+    setShowLoyaltyPrompt(false)
+    if (pendingOrder) {
+      confirmPlaceOrder(pendingOrder, true)
+    }
   }
 
   const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
-    setOrders((prev) => prev.map((order) => (order.id === orderId ? { ...order, status } : order)))
-
-    if (status === "ready") {
-      setOrderReadyNotificationOpen(true)
-      setLoyaltyStamps((prev) => {
-        const newStampCount = prev + 1
-        if (newStampCount >= 10) {
-          toast({
-            title: "🎉 Free Coffee Earned!",
-            description: "You've collected 10 stamps! Enjoy your free coffee!",
-            duration: 5000,
-          })
-          return 0
-        } else {
-          toast({
-            title: "Stamp Earned! ☕",
-            description: `You now have ${newStampCount} stamp${newStampCount > 1 ? "s" : ""}!`,
-          })
-          return newStampCount
-        }
-      })
-    }
-
+    broadcastUpdateStatus(orderId, status)
     toast({
       title: "Order Updated",
       description: `Order status changed to ${status}`,
     })
   }
+
+  // Sipariş "ready" olduğunda — broadcast dahil her kaynaktan — stamp ve bildirim tetikle
+  const prevStatusesRef = useRef<Map<string, string>>(new Map())
+  useEffect(() => {
+    orders.forEach((order) => {
+      const prev = prevStatusesRef.current.get(order.id)
+      if (order.status === "ready" && prev !== "ready") {
+        setOrderReadyNotificationOpen(true)
+        if (!order.isGuest) {
+          setLoyaltyStamps((s) => {
+            const next = s + 1
+            if (next >= 10) {
+              toast({ title: "🎉 Free Coffee Earned!", description: "You've collected 10 stamps! Enjoy your free coffee!", duration: 5000 })
+              return 0
+            }
+            toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
+            return next
+          })
+        }
+      }
+      prevStatusesRef.current.set(order.id, order.status)
+    })
+  }, [orders])
 
   const handleRateOrder = (orderId: string) => {
     if (!isLoggedIn) {
@@ -114,14 +145,17 @@ export default function Home() {
       title: "Welcome!",
       description: "You've successfully signed in.",
     })
-    if (selectedOrderId) {
+    // Loyalty prompt'tan yönlendirildiyse pending siparişi yerleştir
+    if (pendingOrder) {
+      confirmPlaceOrder(pendingOrder, false)
+    } else if (selectedOrderId) {
       setReviewDialogOpen(true)
     }
   }
 
   const handleSubmitReview = (rating: number, review: string) => {
     if (selectedOrderId) {
-      setOrders((prev) => prev.map((order) => (order.id === selectedOrderId ? { ...order, rating, review } : order)))
+      broadcastRateOrder(selectedOrderId, rating, review)
       toast({
         title: "Thank You!",
         description: "Your review has been submitted.",
@@ -266,6 +300,11 @@ export default function Home() {
       <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} onAuth={handleAuth} />
       <ReviewDialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen} onSubmit={handleSubmitReview} />
       <OrderReadyNotification open={orderReadyNotificationOpen} onOpenChange={setOrderReadyNotificationOpen} />
+      <LoyaltyPromptDialog
+        open={showLoyaltyPrompt}
+        onSignIn={handleLoyaltySignIn}
+        onSkip={handleLoyaltySkip}
+      />
       <SettingsDialog
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}

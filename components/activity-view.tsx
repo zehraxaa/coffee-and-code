@@ -76,7 +76,7 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-foreground">Custom Order</h3>
+                <h3 className="font-semibold text-foreground">{order.itemName || "Custom Order"}</h3>
                 <Badge variant="outline" className={getStatusColor(order.status)}>
                   {getStatusIcon(order.status)}
                   <span className="ml-1">{getStatusText(order.status)}</span>
@@ -90,8 +90,25 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                   <span className="font-medium text-foreground">Shot:</span> {order.shot}
                 </p>
                 <p className="text-muted-foreground">
-                  <span className="font-medium text-foreground">Milk:</span> {order.milkType}
+                  <span className="font-medium text-foreground">Strength:</span>{" "}
+                  <span className="capitalize">{order.coffeeStrength}</span>
                 </p>
+                <p className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Sugar:</span> {order.sugarLevel}/5
+                </p>
+                <p className="text-muted-foreground">
+                  <span className="font-medium text-foreground">Cup:</span> {order.cupType}
+                </p>
+                {order.milkType && !(["americano", "espresso", "iced americano"].some(n => (order.itemName || "").toLowerCase().includes(n))) && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Milk:</span> {order.milkType}
+                  </p>
+                )}
+                {order.chocolateType && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Chocolate:</span> {order.chocolateType}
+                  </p>
+                )}
                 {order.price && (
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Price:</span> {order.price}

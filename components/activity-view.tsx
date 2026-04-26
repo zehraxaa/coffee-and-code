@@ -4,10 +4,11 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Coffee, Clock, CheckCircle, Package } from "lucide-react"
+import { Coffee, Clock, CheckCircle, Package, XCircle } from "lucide-react"
 import { motion } from "framer-motion"
 import type { Order } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
+import { formatOrderNumber } from "@/lib/order-number"
 
 interface ActivityViewProps {
   orders: Order[]
@@ -23,6 +24,8 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
         return "bg-accent/20 text-accent-foreground border-accent"
       case "ready":
         return "bg-primary/20 text-primary border-primary"
+      case "cancelled":
+        return "bg-destructive/20 text-destructive border-destructive"
       default:
         return "bg-muted text-muted-foreground"
     }
@@ -36,6 +39,8 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
         return <Package className="h-4 w-4" />
       case "ready":
         return <CheckCircle className="h-4 w-4" />
+      case "cancelled":
+        return <XCircle className="h-4 w-4" />
     }
   }
 
@@ -47,11 +52,15 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
         return "Preparing"
       case "ready":
         return "Ready"
+      case "cancelled":
+        return "Cancelled"
+      default:
+        return status
     }
   }
 
-  const activeOrders = orders.filter((order) => order.status !== "completed")
-  const pastOrders = orders.filter((order) => order.status === "completed")
+  const activeOrders = orders.filter((order) => order.status !== "completed" && order.status !== "cancelled")
+  const pastOrders = orders.filter((order) => order.status === "completed" || order.status === "cancelled")
 
   const renderOrderCard = (order: Order, index: number) => (
     <motion.div
@@ -76,7 +85,10 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <h3 className="font-semibold text-foreground">{order.itemName || "Custom Order"}</h3>
+                <h3 className="font-semibold text-foreground">
+                  {order.orderNumber ? formatOrderNumber(order.orderNumber) + " · " : ""}
+                  {order.itemName || "Custom Order"}
+                </h3>
                 <Badge variant="outline" className={getStatusColor(order.status)}>
                   {getStatusIcon(order.status)}
                   <span className="ml-1">{getStatusText(order.status)}</span>
@@ -176,13 +188,32 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
           </div>
         )}
 
-        {order.status === "ready" && !order.rating && (
+        {order.status === "completed" && !order.rating && (
           <Button
             className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => onRateOrder(order.id)}
           >
             Rate & Review
           </Button>
+        )}
+
+        {/* Yorum gösterimi */}
+        {order.rating && (
+          <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
+            <div className="flex items-center justify-between mb-1.5">
+              <span className="text-xs font-semibold text-foreground">
+                {order.reviewerName || "Anonymous"}
+              </span>
+              <div className="flex gap-0.5">
+                {Array.from({ length: 5 }).map((_, i) => (
+                  <svg key={i} className={`h-3.5 w-3.5 ${i < order.rating! ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`} viewBox="0 0 20 20">
+                    <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+                  </svg>
+                ))}
+              </div>
+            </div>
+            {order.review && <p className="text-xs text-muted-foreground">"{order.review}"</p>}
+          </div>
         )}
       </Card>
     </motion.div>

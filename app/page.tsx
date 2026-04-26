@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useRef } from "react"
 import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
+import { getNextOrderNumber } from "@/lib/order-number"
 import { SplashScreen } from "@/components/splash-screen"
 import { BottomNavigation } from "@/components/bottom-navigation"
 import { HomeView } from "@/components/home-view"
@@ -39,6 +40,8 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState(false)
   const [pendingOrder, setPendingOrder] = useState<Omit<Order, "id" | "timestamp"> | null>(null)
   const [showLoyaltyPrompt, setShowLoyaltyPrompt] = useState(false)
+  const [loggedInUser, setLoggedInUser] = useState<{ name: string; surname: string } | null>(null)
+  const [freeCoffeeCode, setFreeCoffeeCode] = useState<string | null>(null)
   const { toast } = useToast()
 
   useEffect(() => {
@@ -59,6 +62,7 @@ export default function Home() {
     const newOrder: Order = {
       ...orderData,
       id: crypto.randomUUID(),
+      orderNumber: getNextOrderNumber(),
       timestamp: new Date(),
       isGuest,
     }
@@ -113,14 +117,19 @@ export default function Home() {
       if (order.status === "ready" && prev !== "ready") {
         setOrderReadyNotificationOpen(true)
         if (!order.isGuest) {
+          // toast() updater fonksiyonu DIŞINDA çağrılmalı
           setLoyaltyStamps((s) => {
             const next = s + 1
-            if (next >= 10) {
-              toast({ title: "🎉 Free Coffee Earned!", description: "You've collected 10 stamps! Enjoy your free coffee!", duration: 5000 })
-              return 0
-            }
-            toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
-            return next
+            setTimeout(() => {
+              if (next >= 10) {
+                const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                setFreeCoffeeCode(code)
+                toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
+              } else {
+                toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
+              }
+            }, 0)
+            return next >= 10 ? 10 : next
           })
         }
       }
@@ -138,14 +147,16 @@ export default function Home() {
     }
   }
 
-  const handleAuth = (email: string, password: string) => {
+  const handleAuth = (email: string, password: string, name?: string, surname?: string) => {
     setIsLoggedIn(true)
     setAuthDialogOpen(false)
+    if (name && surname) {
+      setLoggedInUser({ name, surname })
+    }
     toast({
       title: "Welcome!",
       description: "You've successfully signed in.",
     })
-    // Loyalty prompt'tan yönlendirildiyse pending siparişi yerleştir
     if (pendingOrder) {
       confirmPlaceOrder(pendingOrder, false)
     } else if (selectedOrderId) {
@@ -155,7 +166,11 @@ export default function Home() {
 
   const handleSubmitReview = (rating: number, review: string) => {
     if (selectedOrderId) {
-      broadcastRateOrder(selectedOrderId, rating, review)
+      // Maskelenmiş ad: A**** L****
+      const reviewerName = loggedInUser
+        ? `${loggedInUser.name[0]}**** ${loggedInUser.surname[0]}****`
+        : undefined
+      broadcastRateOrder(selectedOrderId, rating, review, reviewerName)
       toast({
         title: "Thank You!",
         description: "Your review has been submitted.",
@@ -222,6 +237,8 @@ export default function Home() {
               onPromoClosed={() => setHasSeenPromo(true)}
               onViewFullMenu={() => setActiveTab("menu")}
               loyaltyStamps={loyaltyStamps}
+              freeCoffeeCode={freeCoffeeCode}
+              onRedeemFreeCoffee={() => { setFreeCoffeeCode(null); setLoyaltyStamps(0) }}
               onOrderCoffeeOfMonth={() => {
                 setSelectedMenuItem({ name: "Spanish Latte", price: "120TL" })
                 setActiveTab("order")

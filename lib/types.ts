@@ -1,8 +1,9 @@
-export type OrderStatus = "received" | "preparing" | "ready" | "completed"
+export type OrderStatus = "received" | "preparing" | "ready" | "completed" | "cancelled"
 
 export interface Order {
   id: string
   timestamp: Date
+  orderNumber?: number
   itemName?: string
   coffeeStrength: "smooth" | "balanced" | "strong"
   sugarLevel: number
@@ -15,5 +16,6 @@ export interface Order {
   status: OrderStatus
   rating?: number
   review?: string
+  reviewerName?: string
   price?: string
 }

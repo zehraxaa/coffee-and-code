@@ -6,7 +6,7 @@ import type { Order, OrderStatus } from "@/lib/types"
 type BroadcastMessage =
   | { type: "ORDER_PLACED"; order: Order }
   | { type: "ORDER_STATUS_UPDATED"; orderId: string; status: OrderStatus }
-  | { type: "ORDER_RATED"; orderId: string; rating: number; review: string }
+  | { type: "ORDER_RATED"; orderId: string; rating: number; review: string; reviewerName?: string }
   | { type: "SYNC_REQUEST" }
   | { type: "SYNC_RESPONSE"; orders: Order[] }
 
@@ -48,7 +48,7 @@ export function useBroadcastOrders() {
         case "ORDER_RATED":
           setOrders((prev) =>
             prev.map((o) =>
-              o.id === msg.orderId ? { ...o, rating: msg.rating, review: msg.review } : o
+              o.id === msg.orderId ? { ...o, rating: msg.rating, review: msg.review, reviewerName: msg.reviewerName } : o
             )
           )
           break
@@ -95,15 +95,16 @@ export function useBroadcastOrders() {
     } as BroadcastMessage)
   }, [])
 
-  const broadcastRateOrder = useCallback((orderId: string, rating: number, review: string) => {
+  const broadcastRateOrder = useCallback((orderId: string, rating: number, review: string, reviewerName?: string) => {
     setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, rating, review } : o))
+      prev.map((o) => (o.id === orderId ? { ...o, rating, review, reviewerName } : o))
     )
     channelRef.current?.postMessage({
       type: "ORDER_RATED",
       orderId,
       rating,
       review,
+      reviewerName,
     } as BroadcastMessage)
   }, [])
 

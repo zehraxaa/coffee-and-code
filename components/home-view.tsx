@@ -13,6 +13,8 @@ interface HomeViewProps {
   onPromoClosed: () => void
   onViewFullMenu: () => void
   loyaltyStamps: number
+  freeCoffeeCode?: string | null
+  onRedeemFreeCoffee?: () => void
   onOrderCoffeeOfMonth: () => void
   onOrderFavorite: (item: { name: string; price: string }) => void
 }
@@ -22,6 +24,8 @@ export function HomeView({
   onPromoClosed,
   onViewFullMenu,
   loyaltyStamps,
+  freeCoffeeCode,
+  onRedeemFreeCoffee,
   onOrderCoffeeOfMonth,
   onOrderFavorite,
 }: HomeViewProps) {
@@ -133,9 +137,38 @@ export function HomeView({
             ))}
           </div>
           <p className="mt-3 text-xs text-primary-foreground/80">
-            {totalStamps - loyaltyStamps} more stamps for a free drink!
+            {loyaltyStamps >= 10 ? "🎉 Free coffee earned! Redeem below." : `${totalStamps - loyaltyStamps} more stamps for a free drink!`}
           </p>
         </Card>
+
+        {/* Free Coffee Coupon */}
+        {freeCoffeeCode && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Card className="overflow-hidden border-2 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-5">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500">
+                  <Coffee className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-bold text-green-700 dark:text-green-300">🎉 Free Coffee!</p>
+                  <p className="text-xs text-green-600 dark:text-green-400">Show this code to the barista</p>
+                </div>
+              </div>
+              <div className="rounded-lg bg-white dark:bg-black/30 border border-green-300 px-4 py-3 text-center mb-3">
+                <span className="font-mono text-2xl font-bold tracking-widest text-green-700 dark:text-green-300">{freeCoffeeCode}</span>
+              </div>
+              <Button
+                className="w-full bg-green-500 hover:bg-green-600 text-white"
+                onClick={onRedeemFreeCoffee}
+              >
+                Redeem Now
+              </Button>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Campaigns Slider */}
         <div>

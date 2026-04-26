@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
@@ -12,19 +11,23 @@ import { Coffee } from "lucide-react"
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAuth: (email: string, password: string) => void
+  onAuth: (email: string, password: string, name?: string, surname?: string) => void
 }
 
 export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+  const [name, setName] = useState("")
+  const [surname, setSurname] = useState("")
   const [isSignUp, setIsSignUp] = useState(false)
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onAuth(email, password)
+    onAuth(email, password, isSignUp ? name : undefined, isSignUp ? surname : undefined)
     setEmail("")
     setPassword("")
+    setName("")
+    setSurname("")
   }
 
   return (
@@ -40,6 +43,31 @@ export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Name + Surname — only on sign up */}
+          {isSignUp && (
+            <div className="flex gap-3">
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="name">Name</Label>
+                <Input
+                  id="name"
+                  placeholder="Jane"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="flex-1 space-y-2">
+                <Label htmlFor="surname">Surname</Label>
+                <Input
+                  id="surname"
+                  placeholder="Doe"
+                  value={surname}
+                  onChange={(e) => setSurname(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+          )}
           <div className="space-y-2">
             <Label htmlFor="email">Email</Label>
             <Input

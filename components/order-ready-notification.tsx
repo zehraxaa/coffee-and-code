@@ -1,6 +1,6 @@
 "use client"
 
-import { Dialog, DialogContent } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Coffee, CheckCircle } from "lucide-react"
 import { motion } from "framer-motion"
@@ -14,6 +14,7 @@ export function OrderReadyNotification({ open, onOpenChange }: OrderReadyNotific
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
+        <DialogTitle className="sr-only">Order Ready</DialogTitle>
         <div className="flex flex-col items-center text-center">
           <motion.div
             initial={{ scale: 0 }}

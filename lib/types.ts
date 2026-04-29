@@ -10,6 +10,7 @@ export interface Order {
   shot: "single" | "double"
   milkType: "whole" | "lactose-free" | "oat"
   cupType: "paper" | "plastic" | "glass" | "porcelain"
+  cupSize: "small" | "medium" | "large"
   syrups: string[]
   chocolateType?: "white" | "milk" | "dark"
   isGuest?: boolean
@@ -18,4 +19,5 @@ export interface Order {
   review?: string
   reviewerName?: string
   price?: string
+  note?: string
 }

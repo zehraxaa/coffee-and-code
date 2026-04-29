@@ -21,6 +21,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import type { Order, OrderStatus } from "@/lib/types"
+import type { StoredUser } from "@/lib/auth-store"
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
@@ -29,6 +30,7 @@ export default function Home() {
   const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [loggedInUser, setLoggedInUser] = useState<StoredUser | null>(null)
   const [authDialogOpen, setAuthDialogOpen] = useState(false)
   const [reviewDialogOpen, setReviewDialogOpen] = useState(false)
   const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null)
@@ -40,7 +42,6 @@ export default function Home() {
   const [darkMode, setDarkMode] = useState(false)
   const [pendingOrder, setPendingOrder] = useState<Omit<Order, "id" | "timestamp"> | null>(null)
   const [showLoyaltyPrompt, setShowLoyaltyPrompt] = useState(false)
-  const [loggedInUser, setLoggedInUser] = useState<{ name: string; surname: string } | null>(null)
   const [freeCoffeeCode, setFreeCoffeeCode] = useState<string | null>(null)
   const { toast } = useToast()
 
@@ -53,11 +54,12 @@ export default function Home() {
   }, [darkMode])
 
   useEffect(() => {
-    // Scroll to top when tab changes
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [activeTab])
 
-  // Siparişi fiilen yerleştiren yardımcı fonksiyon
+  // ────────────────────────────────────────────
+  // Sipariş yerleştirme
+  // ────────────────────────────────────────────
   const confirmPlaceOrder = (orderData: Omit<Order, "id" | "timestamp">, isGuest: boolean) => {
     const newOrder: Order = {
       ...orderData,
@@ -68,56 +70,50 @@ export default function Home() {
     }
     broadcastPlaceOrder(newOrder)
     setActiveTab("activity")
-    toast({
-      title: "Order Placed! 🎉",
-      description: "Your order has been received.",
-    })
+    toast({ title: "Order Placed! 🎉", description: "Your order has been received." })
     setSelectedMenuItem(null)
     setPendingOrder(null)
   }
 
   const handlePlaceOrder = (orderData: Omit<Order, "id" | "timestamp">) => {
     if (isLoggedIn) {
-      // Giriş yapılmış — direkt siparişi ver, damga kazanacak
       confirmPlaceOrder(orderData, false)
     } else {
-      // Giriş yapılmamış — loyalty seçeneği sun
       setPendingOrder(orderData)
       setShowLoyaltyPrompt(true)
     }
   }
 
   const handleLoyaltySignIn = () => {
-    // pendingOrder kayıtlı kalır; kullanıcı account sekmesinden giriş yapacak
     setShowLoyaltyPrompt(false)
     setActiveTab("account")
   }
 
   const handleLoyaltySkip = () => {
-    // Tek seferlik müşteri — damga yok
     setShowLoyaltyPrompt(false)
-    if (pendingOrder) {
-      confirmPlaceOrder(pendingOrder, true)
-    }
+    if (pendingOrder) confirmPlaceOrder(pendingOrder, true)
   }
 
+  // ────────────────────────────────────────────
+  // Sipariş durumu güncelleme
+  // ────────────────────────────────────────────
   const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
     broadcastUpdateStatus(orderId, status)
-    toast({
-      title: "Order Updated",
-      description: `Order status changed to ${status}`,
-    })
+    toast({ title: "Order Updated", description: `Order status changed to ${status}` })
   }
 
-  // Sipariş "ready" olduğunda — broadcast dahil her kaynaktan — stamp ve bildirim tetikle
+  // Bildirim → ready'de, Stamp → completed (Picked Up) anında
   const prevStatusesRef = useRef<Map<string, string>>(new Map())
   useEffect(() => {
     orders.forEach((order) => {
       const prev = prevStatusesRef.current.get(order.id)
+
       if (order.status === "ready" && prev !== "ready") {
         setOrderReadyNotificationOpen(true)
+      }
+
+      if (order.status === "completed" && prev !== "completed") {
         if (!order.isGuest) {
-          // toast() updater fonksiyonu DIŞINDA çağrılmalı
           setLoyaltyStamps((s) => {
             const next = s + 1
             setTimeout(() => {
@@ -133,10 +129,36 @@ export default function Home() {
           })
         }
       }
+
       prevStatusesRef.current.set(order.id, order.status)
     })
   }, [orders])
 
+  // ────────────────────────────────────────────
+  // Auth
+  // ────────────────────────────────────────────
+  const handleAuth = (user: StoredUser) => {
+    setIsLoggedIn(true)
+    setLoggedInUser(user)
+    setAuthDialogOpen(false)
+    toast({ title: `Welcome, ${user.name}! ☕`, description: "You've successfully signed in." })
+
+    if (pendingOrder) {
+      confirmPlaceOrder(pendingOrder, false)
+    } else if (selectedOrderId) {
+      setReviewDialogOpen(true)
+    }
+  }
+
+  const handleLogout = () => {
+    setIsLoggedIn(false)
+    setLoggedInUser(null)
+    toast({ title: "Signed Out", description: "You've been signed out successfully." })
+  }
+
+  // ────────────────────────────────────────────
+  // Yorum
+  // ────────────────────────────────────────────
   const handleRateOrder = (orderId: string) => {
     if (!isLoggedIn) {
       setSelectedOrderId(orderId)
@@ -147,66 +169,37 @@ export default function Home() {
     }
   }
 
-  const handleAuth = (email: string, password: string, name?: string, surname?: string) => {
-    setIsLoggedIn(true)
-    setAuthDialogOpen(false)
-    if (name && surname) {
-      setLoggedInUser({ name, surname })
-    }
-    toast({
-      title: "Welcome!",
-      description: "You've successfully signed in.",
-    })
-    if (pendingOrder) {
-      confirmPlaceOrder(pendingOrder, false)
-    } else if (selectedOrderId) {
-      setReviewDialogOpen(true)
-    }
-  }
-
   const handleSubmitReview = (rating: number, review: string) => {
     if (selectedOrderId) {
-      // Maskelenmiş ad: A**** L****
+      // Her zaman güncel ismi kullan — manage account'ta değişince yorumlar yeni isimle çıkar
       const reviewerName = loggedInUser
         ? `${loggedInUser.name[0]}**** ${loggedInUser.surname[0]}****`
         : undefined
       broadcastRateOrder(selectedOrderId, rating, review, reviewerName)
-      toast({
-        title: "Thank You!",
-        description: "Your review has been submitted.",
-      })
+      toast({ title: "Thank You!", description: "Your review has been submitted." })
       setSelectedOrderId(null)
     }
   }
 
+  // ────────────────────────────────────────────
+  // Menü
+  // ────────────────────────────────────────────
   const handleMenuItemSelect = (item: { name: string; price: string }) => {
     setSelectedMenuItem(item)
     setActiveTab("order")
   }
 
-  const handleSettingsSave = (data: {
-    currentPassword?: string
-    newPassword?: string
-    name?: string
-    email?: string
-  }) => {
-    setSettingsDialogOpen(false)
-    toast({
-      title: "Settings Updated",
-      description: "Your changes have been saved successfully.",
-    })
+  // ────────────────────────────────────────────
+  // Ayarlar
+  // ────────────────────────────────────────────
+  const handleSettingsSaved = (updatedUser: StoredUser) => {
+    setLoggedInUser(updatedUser)
+    toast({ title: "Settings Updated", description: "Your changes have been saved." })
   }
 
-  const handleOpenAccountSettings = () => {
-    setSettingsDialogType("account")
-    setSettingsDialogOpen(true)
-  }
-
-  const handleOpenPasswordSettings = () => {
-    setSettingsDialogType("password")
-    setSettingsDialogOpen(true)
-  }
-
+  // ────────────────────────────────────────────
+  // Render
+  // ────────────────────────────────────────────
   if (showSplash) {
     return <SplashScreen onComplete={() => setShowSplash(false)} />
   }
@@ -251,6 +244,7 @@ export default function Home() {
               onBack={() => setActiveTab(selectedMenuItem ? "menu" : "home")}
               onPlaceOrder={handlePlaceOrder}
               preselectedItem={selectedMenuItem || undefined}
+              orders={orders}
             />
           )}
           {activeTab === "menu" && <MenuView onBack={() => setActiveTab("home")} onSelectItem={handleMenuItemSelect} />}
@@ -259,8 +253,9 @@ export default function Home() {
           {activeTab === "account" && (
             <div className="space-y-6">
               <h1 className="text-2xl font-bold text-foreground">Account & Settings</h1>
-              
+
               <div className="space-y-4">
+                {/* Dark mode */}
                 <div className="flex items-center justify-between rounded-lg bg-card p-4">
                   <Label htmlFor="dark-mode" className="font-medium text-foreground">
                     Dark Mode
@@ -268,12 +263,19 @@ export default function Home() {
                   <Switch id="dark-mode" checked={darkMode} onCheckedChange={setDarkMode} />
                 </div>
 
-                {isLoggedIn ? (
+                {isLoggedIn && loggedInUser ? (
                   <>
+                    {/* Kullanıcı bilgi kartı */}
+                    <div className="rounded-lg bg-card p-4 border border-border">
+                      <p className="text-xs text-muted-foreground mb-0.5">Signed in as</p>
+                      <p className="font-semibold text-foreground">{loggedInUser.name} {loggedInUser.surname}</p>
+                      <p className="text-sm text-muted-foreground">{loggedInUser.email}</p>
+                    </div>
+
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-card text-foreground"
-                      onClick={handleOpenAccountSettings}
+                      onClick={() => { setSettingsDialogType("account"); setSettingsDialogOpen(true) }}
                     >
                       Manage Account
                     </Button>
@@ -281,7 +283,7 @@ export default function Home() {
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-card text-foreground"
-                      onClick={handleOpenPasswordSettings}
+                      onClick={() => { setSettingsDialogType("password"); setSettingsDialogOpen(true) }}
                     >
                       Change Password
                     </Button>
@@ -289,21 +291,29 @@ export default function Home() {
                     <Button
                       variant="outline"
                       className="w-full justify-start bg-card text-destructive hover:bg-destructive/10"
-                      onClick={() => {
-                        setIsLoggedIn(false)
-                        toast({ title: "Signed Out", description: "You've been signed out successfully." })
-                      }}
+                      onClick={handleLogout}
                     >
                       Log Out
                     </Button>
                   </>
                 ) : (
-                  <div className="mt-8 rounded-lg border border-border p-4 text-center">
-                    <h3 className="mb-2 font-medium text-foreground">Sign In for More Features</h3>
-                    <p className="mb-4 text-sm text-muted-foreground">Track your orders, earn rewards, and manage your account.</p>
+                  <div className="mt-8 rounded-lg border border-border p-6 text-center space-y-4">
+                    <h3 className="font-semibold text-foreground text-lg">Sign In for More Features</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Earn loyalty stamps, track your orders and save your preferences.
+                    </p>
                     <Button className="w-full bg-primary text-primary-foreground" onClick={() => setAuthDialogOpen(true)}>
                       Sign In
                     </Button>
+                    <button
+                      className="text-sm text-primary hover:underline block w-full text-center"
+                      onClick={() => {
+                        // AuthDialog'u sign-up modunda aç
+                        setAuthDialogOpen(true)
+                      }}
+                    >
+                      New here? Create an account
+                    </button>
                   </div>
                 )}
               </div>
@@ -314,7 +324,11 @@ export default function Home() {
         <BottomNavigation activeTab={activeTab} onTabChange={setActiveTab} />
       </div>
 
-      <AuthDialog open={authDialogOpen} onOpenChange={setAuthDialogOpen} onAuth={handleAuth} />
+      <AuthDialog
+        open={authDialogOpen}
+        onOpenChange={setAuthDialogOpen}
+        onAuth={handleAuth}
+      />
       <ReviewDialog open={reviewDialogOpen} onOpenChange={setReviewDialogOpen} onSubmit={handleSubmitReview} />
       <OrderReadyNotification open={orderReadyNotificationOpen} onOpenChange={setOrderReadyNotificationOpen} />
       <LoyaltyPromptDialog
@@ -326,7 +340,8 @@ export default function Home() {
         open={settingsDialogOpen}
         onOpenChange={setSettingsDialogOpen}
         dialogType={settingsDialogType}
-        onSave={handleSettingsSave}
+        currentUser={loggedInUser}
+        onSaved={handleSettingsSaved}
       />
     </>
   )

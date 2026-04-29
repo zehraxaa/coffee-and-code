@@ -7,6 +7,7 @@ type BroadcastMessage =
   | { type: "ORDER_PLACED"; order: Order }
   | { type: "ORDER_STATUS_UPDATED"; orderId: string; status: OrderStatus }
   | { type: "ORDER_RATED"; orderId: string; rating: number; review: string; reviewerName?: string }
+  | { type: "ORDER_REVIEW_DELETED"; orderId: string }
   | { type: "SYNC_REQUEST" }
   | { type: "SYNC_RESPONSE"; orders: Order[] }
 
@@ -49,6 +50,14 @@ export function useBroadcastOrders() {
           setOrders((prev) =>
             prev.map((o) =>
               o.id === msg.orderId ? { ...o, rating: msg.rating, review: msg.review, reviewerName: msg.reviewerName } : o
+            )
+          )
+          break
+
+        case "ORDER_REVIEW_DELETED":
+          setOrders((prev) =>
+            prev.map((o) =>
+              o.id === msg.orderId ? { ...o, rating: undefined, review: undefined, reviewerName: undefined } : o
             )
           )
           break
@@ -108,5 +117,15 @@ export function useBroadcastOrders() {
     } as BroadcastMessage)
   }, [])
 
-  return { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder }
+  const broadcastDeleteReview = useCallback((orderId: string) => {
+    setOrders((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, rating: undefined, review: undefined, reviewerName: undefined } : o))
+    )
+    channelRef.current?.postMessage({
+      type: "ORDER_REVIEW_DELETED",
+      orderId,
+    } as BroadcastMessage)
+  }, [])
+
+  return { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder, broadcastDeleteReview }
 }

@@ -6,50 +6,112 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Coffee } from "lucide-react"
+import { Coffee, AlertCircle } from "lucide-react"
+import { loginUser, registerUser } from "@/lib/auth-store"
+import type { StoredUser } from "@/lib/auth-store"
 
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  onAuth: (email: string, password: string, name?: string, surname?: string) => void
+  /** Başarılı auth sonrası tam kullanıcı objesiyle çağrılır */
+  onAuth: (user: StoredUser) => void
+  /** Başlangıçta sign-up formunu aç (opsiyonel) */
+  defaultSignUp?: boolean
 }
 
-export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
+export function AuthDialog({ open, onOpenChange, onAuth, defaultSignUp = false }: AuthDialogProps) {
+  const [isSignUp, setIsSignUp] = useState(defaultSignUp)
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [surname, setSurname] = useState("")
-  const [isSignUp, setIsSignUp] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(false)
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    onAuth(email, password, isSignUp ? name : undefined, isSignUp ? surname : undefined)
+  const reset = () => {
     setEmail("")
     setPassword("")
     setName("")
     setSurname("")
+    setError(null)
+  }
+
+  const switchMode = () => {
+    setIsSignUp((v) => !v)
+    setError(null)
+  }
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    setError(null)
+    setLoading(true)
+
+    if (isSignUp) {
+      if (!name.trim() || !surname.trim()) {
+        setError("Name and surname are required.")
+        setLoading(false)
+        return
+      }
+      if (password.length < 6) {
+        setError("Password must be at least 6 characters.")
+        setLoading(false)
+        return
+      }
+      const result = registerUser(email, password, name.trim(), surname.trim())
+      if (!result.success) {
+        setError(result.error || "Registration failed.")
+        setLoading(false)
+        return
+      }
+      // Kayıt başarılı → direkt giriş yaptır
+      onAuth({ email: email.toLowerCase(), password, name: name.trim(), surname: surname.trim() })
+    } else {
+      const result = loginUser(email, password)
+      if (!result.user) {
+        setError(result.error || "Login failed.")
+        setLoading(false)
+        return
+      }
+      onAuth(result.user)
+    }
+
+    reset()
+    setLoading(false)
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(v) => { onOpenChange(v); if (!v) reset() }}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary">
             <Coffee className="h-8 w-8 text-primary-foreground" />
           </div>
-          <DialogTitle className="text-center text-2xl">{isSignUp ? "Create Account" : "Welcome Back"}</DialogTitle>
+          <DialogTitle className="text-center text-2xl">
+            {isSignUp ? "Create Account" : "Welcome Back"}
+          </DialogTitle>
           <DialogDescription className="text-center">
-            {isSignUp ? "Sign up to leave reviews and earn rewards" : "Sign in to continue"}
+            {isSignUp
+              ? "Sign up to earn rewards and track your orders"
+              : "Sign in to your Coffee & Code account"}
           </DialogDescription>
         </DialogHeader>
+
         <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Name + Surname — only on sign up */}
+          {/* Error */}
+          {error && (
+            <div className="flex items-start gap-2 rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2.5">
+              <AlertCircle className="h-4 w-4 shrink-0 text-destructive mt-0.5" />
+              <p className="text-sm text-destructive">{error}</p>
+            </div>
+          )}
+
+          {/* Name + Surname — sign up only */}
           {isSignUp && (
             <div className="flex gap-3">
               <div className="flex-1 space-y-2">
-                <Label htmlFor="name">Name</Label>
+                <Label htmlFor="auth-name">Name</Label>
                 <Input
-                  id="name"
+                  id="auth-name"
                   placeholder="Jane"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
@@ -57,9 +119,9 @@ export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
                 />
               </div>
               <div className="flex-1 space-y-2">
-                <Label htmlFor="surname">Surname</Label>
+                <Label htmlFor="auth-surname">Surname</Label>
                 <Input
-                  id="surname"
+                  id="auth-surname"
                   placeholder="Doe"
                   value={surname}
                   onChange={(e) => setSurname(e.target.value)}
@@ -68,10 +130,11 @@ export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
               </div>
             </div>
           )}
+
           <div className="space-y-2">
-            <Label htmlFor="email">Email</Label>
+            <Label htmlFor="auth-email">Email</Label>
             <Input
-              id="email"
+              id="auth-email"
               type="email"
               placeholder="you@example.com"
               value={email}
@@ -79,27 +142,40 @@ export function AuthDialog({ open, onOpenChange, onAuth }: AuthDialogProps) {
               required
             />
           </div>
+
           <div className="space-y-2">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="auth-password">Password</Label>
             <Input
-              id="password"
+              id="auth-password"
               type="password"
               placeholder="••••••••"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
+              minLength={isSignUp ? 6 : 1}
             />
+            {isSignUp && (
+              <p className="text-xs text-muted-foreground">Minimum 6 characters</p>
+            )}
           </div>
-          <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-            {isSignUp ? "Sign Up" : "Sign In"}
+
+          <Button
+            type="submit"
+            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            disabled={loading}
+          >
+            {isSignUp ? "Create Account" : "Sign In"}
           </Button>
+
           <div className="text-center">
             <button
               type="button"
               className="text-sm text-primary hover:underline"
-              onClick={() => setIsSignUp(!isSignUp)}
+              onClick={switchMode}
             >
-              {isSignUp ? "Already have an account? Sign in" : "Don't have an account? Sign up"}
+              {isSignUp
+                ? "Already have an account? Sign in"
+                : "Don't have an account? Sign up"}
             </button>
           </div>
         </form>

@@ -6,13 +6,14 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Coffee, X } from "lucide-react"
+import { ArrowLeft, Coffee, Star, X } from "lucide-react"
 import type { Order } from "@/lib/types"
 
 interface CustomOrderFormProps {
   onBack: () => void
   onPlaceOrder: (order: Omit<Order, "id" | "timestamp">) => void
   preselectedItem?: { name: string; price: string }
+  orders?: Order[]
 }
 
 // Süt ve syrup gerektirmeyen içecekler
@@ -104,6 +105,10 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
               <p className="text-xs text-muted-foreground mb-1">Cup Type</p>
               <p className="font-medium text-foreground capitalize">{order.cupType}</p>
             </div>
+            <div className="p-3 rounded-xl bg-muted/50">
+              <p className="text-xs text-muted-foreground mb-1">Cup Size</p>
+              <p className="font-medium text-foreground capitalize">{order.cupSize}</p>
+            </div>
             {order.milkType && !isNoMilkItem(order.itemName) && (
               <div className="p-3 rounded-xl bg-muted/50">
                 <p className="text-xs text-muted-foreground mb-1">Milk</p>
@@ -153,7 +158,7 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
   )
 }
 
-export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: CustomOrderFormProps) {
+export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders = [] }: CustomOrderFormProps) {
   const [coffeeStrength, setCoffeeStrength] = useState<"smooth" | "balanced" | "strong">("balanced")
   const [sugarLevel, setSugarLevel] = useState([0])
   const [shot, setShot] = useState<"single" | "double">("single")
@@ -161,9 +166,11 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
   const [cupType, setCupType] = useState<"paper" | "plastic" | "glass" | "porcelain">(
     isIcedItem(preselectedItem?.name) ? "plastic" : "paper"
   )
+  const [cupSize, setCupSize] = useState<"small" | "medium" | "large">("small")
   const [syrups, setSyrups] = useState<string[]>([])
   const [chocolateType, setChocolateType] = useState<"white" | "milk" | "dark">("milk")
   const [showConfirm, setShowConfirm] = useState(false)
+  const [note, setNote] = useState("")
 
   const noMilk = isNoMilkItem(preselectedItem?.name)
   const isMocha = isMochaItem(preselectedItem?.name)
@@ -172,11 +179,20 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
   const availableSyrups = ["Vanilla", "Caramel", "Hazelnut", "Lotus", "Peppermint"]
 
   const toggleSyrup = (syrup: string) => {
-    setSyrups((prev) => (prev.includes(syrup) ? prev.filter((s) => s !== syrup) : [...prev, syrup]))
+    setSyrups((prev) => {
+      if (prev.includes(syrup)) return prev.filter((s) => s !== syrup)
+      if (prev.length >= 2) return prev // Max 2 syrup
+      return [...prev, syrup]
+    })
   }
 
   const calculatePrice = (): string => {
-    return preselectedItem?.price || "100 TL"
+    const baseStr = preselectedItem?.price || "100 TL"
+    const baseNum = parseInt(baseStr.replace(/[^0-9]/g, ""), 10) || 100
+    const sizeExtra = cupSize === "medium" ? 10 : cupSize === "large" ? 20 : 0
+    const syrupExtra = (noMilk ? 0 : syrups.length) * 10
+    const total = baseNum + sizeExtra + syrupExtra
+    return `${total} TL`
   }
 
   const buildOrder = (): Omit<Order, "id" | "timestamp"> => ({
@@ -186,10 +202,12 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
     shot,
     milkType,
     cupType,
+    cupSize,
     syrups: noMilk ? [] : syrups,
     chocolateType: isMocha ? chocolateType : undefined,
     status: "received",
     price: calculatePrice(),
+    note: note.trim() || undefined,
   })
 
   const handlePlaceOrderClick = () => {
@@ -318,6 +336,24 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
             </Card>
           )}
 
+          {/* Cup Size */}
+          <Card className="p-6">
+            <Label className="text-base font-semibold text-foreground">Cup Size</Label>
+            <p className="mt-1 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
+            <div className="mt-4 flex gap-3">
+              {(["small", "medium", "large"] as const).map((size) => (
+                <Button
+                  key={size}
+                  variant={cupSize === size ? "default" : "outline"}
+                  className="flex-1 capitalize"
+                  onClick={() => setCupSize(size)}
+                >
+                  {size}
+                </Button>
+              ))}
+            </div>
+          </Card>
+
           {/* Cup Type */}
           <Card className="p-6">
             <Label className="text-base font-semibold text-foreground">Cup Type</Label>
@@ -404,21 +440,44 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
           {!noMilk && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Add Syrups</Label>
-              <p className="mt-1 text-sm text-muted-foreground">Select multiple</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Max 2 syrups · +10 TL each
+                {syrups.length >= 2 && <span className="ml-2 text-amber-500 font-medium">Max reached</span>}
+              </p>
               <div className="mt-4 flex flex-wrap gap-2">
-                {availableSyrups.map((syrup) => (
-                  <Badge
-                    key={syrup}
-                    variant={syrups.includes(syrup) ? "default" : "outline"}
-                    className="cursor-pointer px-4 py-2"
-                    onClick={() => toggleSyrup(syrup)}
-                  >
-                    {syrup}
-                  </Badge>
-                ))}
+                {availableSyrups.map((syrup) => {
+                  const isSelected = syrups.includes(syrup)
+                  const isDisabled = !isSelected && syrups.length >= 2
+                  return (
+                    <Badge
+                      key={syrup}
+                      variant={isSelected ? "default" : "outline"}
+                      className={`px-4 py-2 transition-opacity ${
+                        isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
+                      }`}
+                      onClick={() => !isDisabled && toggleSyrup(syrup)}
+                    >
+                      {syrup}
+                    </Badge>
+                  )
+                })}
               </div>
             </Card>
           )}
+
+          {/* Add Note */}
+          <Card className="p-6">
+            <Label htmlFor="order-note" className="text-base font-semibold text-foreground">Add Note</Label>
+            <p className="mt-1 text-sm text-muted-foreground">Any special requests?</p>
+            <textarea
+              id="order-note"
+              value={note}
+              onChange={(e) => setNote(e.target.value)}
+              placeholder="e.g. extra hot, no foam, allergen info…"
+              rows={3}
+              className="mt-3 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
+            />
+          </Card>
 
           {/* Place Order Button */}
           <Button
@@ -429,6 +488,55 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem }: Custo
             <Coffee className="mr-2 h-5 w-5" />
             Place Order
           </Button>
+
+          {/* Customer Reviews for this coffee */}
+          {(() => {
+            const itemReviews = orders.filter(
+              (o) =>
+                o.rating &&
+                o.review &&
+                preselectedItem &&
+                (o.itemName || "").toLowerCase() === preselectedItem.name.toLowerCase()
+            )
+            if (itemReviews.length === 0) return null
+            const avg = itemReviews.reduce((s, o) => s + (o.rating || 0), 0) / itemReviews.length
+            return (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-base font-semibold text-foreground">Customer Reviews</h3>
+                  <div className="flex items-center gap-1">
+                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                    <span className="text-sm font-semibold text-foreground">{avg.toFixed(1)}</span>
+                    <span className="text-xs text-muted-foreground">({itemReviews.length})</span>
+                  </div>
+                </div>
+                {itemReviews.map((o) => (
+                  <Card key={o.id} className="p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-foreground">
+                        {o.reviewerName || "Anonymous"}
+                      </span>
+                      <div className="flex gap-0.5">
+                        {Array.from({ length: 5 }).map((_, i) => (
+                          <Star
+                            key={i}
+                            className={`h-3.5 w-3.5 ${
+                              i < (o.rating || 0)
+                                ? "fill-amber-400 text-amber-400"
+                                : "fill-muted text-muted"
+                            }`}
+                          />
+                        ))}
+                      </div>
+                    </div>
+                    {o.review && (
+                      <p className="text-sm text-muted-foreground">&ldquo;{o.review}&rdquo;</p>
+                    )}
+                  </Card>
+                ))}
+              </div>
+            )
+          })()}
         </div>
       </div>
 

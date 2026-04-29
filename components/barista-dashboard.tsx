@@ -53,24 +53,26 @@ function OrderCard({ order, column, isExpanded, onToggle, onUpdate }: OrderCardP
       {/* Compact header */}
       <button
         onClick={onToggle}
-        className="w-full px-3 py-2.5 flex items-center justify-between hover:bg-muted/30 transition-colors text-left gap-2"
+        className="w-full px-3 py-2 flex items-center justify-between hover:bg-muted/30 transition-colors text-left gap-2"
       >
-        <div className="flex items-center gap-2 min-w-0">
-          <span className={`font-mono font-bold text-xs shrink-0 ${accentText}`}>
-            {formatOrderNumber(order.orderNumber)}
-          </span>
-          <span className="text-sm font-medium text-foreground truncate">
-            {order.itemName || "Custom Coffee"}
-          </span>
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          <span className="text-[10px] text-muted-foreground">
+        <div className="flex flex-col min-w-0">
+          <div className="flex items-center gap-1.5 min-w-0">
+            <span className={`font-mono font-bold text-[10px] shrink-0 px-1 py-0.5 rounded bg-muted/50 ${accentText}`}>
+              {formatOrderNumber(order.orderNumber)}
+            </span>
+            <span className="text-xs font-semibold text-foreground truncate">
+              {order.itemName || "Custom Coffee"}
+            </span>
+          </div>
+          <span className="text-[9px] text-muted-foreground mt-0.5">
             {formatDistanceToNow(order.timestamp, { addSuffix: true })}
           </span>
+        </div>
+        <div className="shrink-0 ml-1">
           {isExpanded ? (
-            <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
           ) : (
-            <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           )}
         </div>
       </button>
@@ -83,6 +85,9 @@ function OrderCard({ order, column, isExpanded, onToggle, onUpdate }: OrderCardP
             <Row label="Sugar" value={`${order.sugarLevel}/5`} />
             <Row label="Shot" value={<span className="capitalize">{order.shot}</span>} />
             <Row label="Cup" value={<span className="capitalize">{order.cupType}</span>} />
+            {order.cupSize && (
+              <Row label="Size" value={<span className="capitalize">{order.cupSize}</span>} />
+            )}
             {!isNoMilk(order.itemName) && (
               <Row label="Milk" value={<span className="capitalize">{order.milkType}</span>} />
             )}
@@ -93,6 +98,12 @@ function OrderCard({ order, column, isExpanded, onToggle, onUpdate }: OrderCardP
               <Row label="Syrups" value={order.syrups.join(", ")} />
             )}
             {order.price && <Row label="Price" value={order.price} />}
+            {order.note && (
+              <div className="mt-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-2 py-1.5">
+                <p className="text-[10px] font-semibold text-amber-500 mb-0.5">Note</p>
+                <p className="text-xs text-foreground">{order.note}</p>
+              </div>
+            )}
           </div>
 
           {/* Action buttons */}
@@ -159,10 +170,10 @@ export function BaristaDashboard({ orders, onUpdateOrderStatus }: BaristaDashboa
     color: string,
     bg: string
   ) => (
-    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${bg} mb-2`}>
-      <Icon className={`h-3.5 w-3.5 ${color}`} />
-      <span className={`text-xs font-semibold ${color}`}>{label}</span>
-      <span className={`ml-auto flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white ${color.replace("text-", "bg-")}`}>
+    <div className={`flex items-center gap-2 px-3 py-2 rounded-lg ${bg} mb-2 min-w-0`}>
+      <Icon className={`h-3.5 w-3.5 shrink-0 ${color}`} />
+      <span className={`text-xs font-bold truncate ${color}`}>{label}</span>
+      <span className={`ml-auto shrink-0 flex h-4 w-4 items-center justify-center rounded-full text-[10px] font-bold text-white ${color.replace("text-", "bg-")}`}>
         {count}
       </span>
     </div>
@@ -181,23 +192,23 @@ export function BaristaDashboard({ orders, onUpdateOrderStatus }: BaristaDashboa
             <Coffee className="h-6 w-6" />
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-4 gap-3 text-center">
+        <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-center">
           {[
             { label: "Today", value: totalToday },
             { label: "Received", value: received.length },
             { label: "Preparing", value: preparing.length },
             { label: "Ready", value: ready.length },
           ].map(({ label, value }) => (
-            <div key={label} className="rounded-lg bg-primary-foreground/10 py-2">
-              <p className="text-lg font-bold">{value}</p>
-              <p className="text-[10px] opacity-70">{label}</p>
+            <div key={label} className="rounded-lg bg-primary-foreground/10 py-2 px-1">
+              <p className="text-lg font-bold leading-none mb-1">{value}</p>
+              <p className="text-[10px] opacity-70 uppercase tracking-wider font-semibold">{label}</p>
             </div>
           ))}
         </div>
       </div>
 
-      {/* 3-column kanban */}
-      <div className="grid grid-cols-3 gap-3 items-start">
+      {/* Responsive Kanban grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 items-start">
         {/* Received */}
         <div>
           {colHeader("Received", received.length, Clock, "text-amber-500", "bg-amber-500/10")}

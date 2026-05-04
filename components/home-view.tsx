@@ -7,6 +7,7 @@ import { Coffee, Star, ChevronRight, Sparkles, Quote, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useEffect, useState } from "react"
 import Image from "next/image"
+import type { Campaign } from "@/lib/types"
 
 interface HomeViewProps {
   hasSeenPromo: boolean
@@ -17,6 +18,7 @@ interface HomeViewProps {
   onRedeemFreeCoffee?: () => void
   onOrderCoffeeOfMonth: () => void
   onOrderFavorite: (item: { name: string; price: string }) => void
+  campaigns?: Campaign[]
 }
 
 export function HomeView({
@@ -28,25 +30,22 @@ export function HomeView({
   onRedeemFreeCoffee,
   onOrderCoffeeOfMonth,
   onOrderFavorite,
+  campaigns = [],
 }: HomeViewProps) {
   const totalStamps = 10
 
   const [currentCampaign, setCurrentCampaign] = useState(0)
 
-  const campaigns = [
-    {
-      id: 1,
-      title: "Summer Special",
-      description: "Iced drinks 20% off",
-      color: "bg-accent",
-    },
-    {
-      id: 2,
-      title: "Happy Hour",
-      description: "3-5 PM daily discounts",
-      color: "bg-primary",
-    },
-  ]
+  // Filter active campaigns (not expired)
+  const activeCampaigns = campaigns.filter((c) => new Date(c.expiresAt) > new Date())
+
+  useEffect(() => {
+    if (activeCampaigns.length === 0) return
+    const interval = setInterval(() => {
+      setCurrentCampaign((prev) => (prev + 1) % activeCampaigns.length)
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [activeCampaigns.length])
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -173,33 +172,62 @@ export function HomeView({
         {/* Campaigns Slider */}
         <div>
           <h2 className="mb-3 text-lg font-semibold text-foreground">Current Campaigns</h2>
-          <div className="relative h-[160px] w-full">
-            <AnimatePresence mode="wait">
-              <motion.div
-                key={currentCampaign}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ duration: 0.5 }}
-                className="absolute inset-0"
-              >
-                <Card className={`h-full w-full p-6 ${campaigns[currentCampaign].color} border-0 text-primary-foreground shadow-lg flex flex-col justify-center`}>
-                  <h3 className="text-xl font-bold">{campaigns[currentCampaign].title}</h3>
-                  <p className="mt-1 text-sm opacity-90">{campaigns[currentCampaign].description}</p>
-                </Card>
-              </motion.div>
-            </AnimatePresence>
-          </div>
-          <div className="mt-4 flex justify-center gap-2">
-            {campaigns.map((_, index) => (
-              <div
-                key={index}
-                className={`h-2 w-2 rounded-full transition-colors ${
-                  index === currentCampaign ? "bg-primary" : "bg-muted"
-                }`}
-              />
-            ))}
-          </div>
+          {activeCampaigns.length === 0 ? (
+            <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
+              No active campaigns at the moment. Check back later!
+            </div>
+          ) : (
+            <>
+              <div className="relative h-[160px] w-full">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={currentCampaign}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -20 }}
+                    transition={{ duration: 0.5 }}
+                    className="absolute inset-0"
+                  >
+                    <Card
+                      className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden ${
+                        activeCampaigns[currentCampaign].imageUrl
+                          ? "bg-transparent"
+                          : "bg-gradient-to-br from-primary to-accent"
+                      }`}
+                    >
+                      {activeCampaigns[currentCampaign].imageUrl && (
+                        <div className="absolute inset-0">
+                          <Image
+                            src={activeCampaigns[currentCampaign].imageUrl!}
+                            alt={activeCampaigns[currentCampaign].title}
+                            fill
+                            className="object-cover"
+                          />
+                          <div className="absolute inset-0 bg-black/50" />
+                        </div>
+                      )}
+                      <div className="relative z-10">
+                        <h3 className="text-xl font-bold">{activeCampaigns[currentCampaign].title}</h3>
+                        <p className="mt-1 text-sm opacity-90">
+                          {activeCampaigns[currentCampaign].description}
+                        </p>
+                      </div>
+                    </Card>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+              <div className="mt-4 flex justify-center gap-2">
+                {activeCampaigns.map((_, index) => (
+                  <div
+                    key={index}
+                    className={`h-2 w-2 rounded-full transition-colors ${
+                      index === currentCampaign ? "bg-primary" : "bg-muted"
+                    }`}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
 
 

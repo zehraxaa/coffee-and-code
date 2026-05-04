@@ -3,6 +3,7 @@
 import { Button } from "@/components/ui/button"
 import { useState, useEffect, useRef } from "react"
 import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
+import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import { getNextOrderNumber } from "@/lib/order-number"
 import { SplashScreen } from "@/components/splash-screen"
 import { BottomNavigation } from "@/components/bottom-navigation"
@@ -28,6 +29,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("home")
   const [hasSeenPromo, setHasSeenPromo] = useState(false)
   const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
+  const { campaigns } = useBroadcastCampaigns()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState<StoredUser | null>(null)
@@ -237,6 +239,7 @@ export default function Home() {
                 setActiveTab("order")
               }}
               onOrderFavorite={(item) => handleMenuItemSelect(item)}
+              campaigns={campaigns}
             />
           )}
           {activeTab === "order" && (

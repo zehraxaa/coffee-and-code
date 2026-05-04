@@ -1,6 +1,4 @@
-"use client"
-
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -8,13 +6,8 @@ import { Slider } from "@/components/ui/slider"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Coffee, Star, X } from "lucide-react"
 import type { Order } from "@/lib/types"
-
-interface CustomOrderFormProps {
-  onBack: () => void
-  onPlaceOrder: (order: Omit<Order, "id" | "timestamp">) => void
-  preselectedItem?: { name: string; price: string }
-  orders?: Order[]
-}
+import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
+import { getMenuItemIdByName } from "@/lib/menu-items"
 
 // Süt ve syrup gerektirmeyen içecekler
 const NO_MILK_ITEMS = ["americano", "espresso", "Americano", "Espresso", "Iced Americano"]
@@ -35,10 +28,18 @@ function isIcedItem(name?: string) {
   return name.toLowerCase().includes("iced") || name.toLowerCase().includes("cold")
 }
 
+interface CustomOrderFormProps {
+  onBack: () => void
+  onPlaceOrder: (order: Omit<Order, "id" | "timestamp">) => void
+  preselectedItem?: { name: string; price: string }
+  orders?: Order[]
+}
+
 interface OrderConfirmPopupProps {
   order: Omit<Order, "id" | "timestamp">
   itemName: string
   price: string
+  hasCampaignDiscount?: boolean
   onConfirm: () => void
   onCancel: () => void
 }
@@ -56,10 +57,7 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center">
       {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/60 backdrop-blur-sm"
-        onClick={onCancel}
-      />
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
 
       {/* Popup */}
       <div className="relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
@@ -69,10 +67,7 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
             <h2 className="text-xl font-bold text-foreground">Order Summary</h2>
             <p className="text-sm text-muted-foreground">Please review your order</p>
           </div>
-          <button
-            onClick={onCancel}
-            className="flex h-8 w-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors"
-          >
+          <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors">
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
@@ -97,9 +92,7 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
             </div>
             <div className="p-3 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground mb-1">Sugar</p>
-              <p className="font-medium text-foreground">
-                {order.sugarLevel}/5 · {sugarLabel(order.sugarLevel)}
-              </p>
+              <p className="font-medium text-foreground">{order.sugarLevel}/5 · {sugarLabel(order.sugarLevel)}</p>
             </div>
             <div className="p-3 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground mb-1">Cup Type</p>
@@ -138,17 +131,10 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
 
         {/* Buttons */}
         <div className="flex gap-3 px-6 pb-6">
-          <Button
-            variant="outline"
-            className="flex-1 border-border text-foreground"
-            onClick={onCancel}
-          >
+          <Button variant="outline" className="flex-1 border-border text-foreground" onClick={onCancel}>
             Cancel
           </Button>
-          <Button
-            className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={onConfirm}
-          >
+          <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" onClick={onConfirm}>
             <Coffee className="mr-2 h-4 w-4" />
             Confirm Order
           </Button>
@@ -159,6 +145,7 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
 }
 
 export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders = [] }: CustomOrderFormProps) {
+  const { applyDiscount } = useBroadcastCampaigns()
   const [coffeeStrength, setCoffeeStrength] = useState<"smooth" | "balanced" | "strong">("balanced")
   const [sugarLevel, setSugarLevel] = useState([0])
   const [shot, setShot] = useState<"single" | "double">("single")
@@ -186,13 +173,35 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     })
   }
 
+  const getBasePrice = (): number => {
+    if (!preselectedItem) return 100
+    const numeric = parseInt(preselectedItem.price.replace(/[^0-9]/g, ""), 10)
+    return isNaN(numeric) ? 100 : numeric
+  }
+
+  const basePriceNum = getBasePrice()
+  const itemId = preselectedItem ? getMenuItemIdByName(preselectedItem.name) : undefined
+  const discountResult = itemId
+    ? applyDiscount(basePriceNum, itemId)
+    : { finalPrice: basePriceNum, discount: 0, campaign: undefined }
+
+  const [activeCampaignForItem, setActiveCampaign] = useState(discountResult.campaign || null)
+
+  useEffect(() => {
+    if (itemId) {
+      const result = applyDiscount(basePriceNum, itemId)
+      setActiveCampaign(result.campaign || null)
+    } else {
+      setActiveCampaign(null)
+    }
+  }, [itemId, preselectedItem?.name, applyDiscount, basePriceNum])
+
   const calculatePrice = (): string => {
-    const baseStr = preselectedItem?.price || "100 TL"
-    const baseNum = parseInt(baseStr.replace(/[^0-9]/g, ""), 10) || 100
+    let final = discountResult.finalPrice
     const sizeExtra = cupSize === "medium" ? 10 : cupSize === "large" ? 20 : 0
     const syrupExtra = (noMilk ? 0 : syrups.length) * 10
-    const total = baseNum + sizeExtra + syrupExtra
-    return `${total} TL`
+    final += sizeExtra + syrupExtra
+    return `${final} TL`
   }
 
   const buildOrder = (): Omit<Order, "id" | "timestamp"> => ({
@@ -236,9 +245,21 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             <h1 className="text-2xl font-bold text-foreground">
               {preselectedItem ? `Customize ${preselectedItem.name}` : "Custom Order"}
             </h1>
-            <p className="text-sm text-muted-foreground">
-              {preselectedItem ? preselectedItem.price : "Craft your perfect drink"}
-            </p>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span>
+                {activeCampaignForItem ? (
+                  <>
+                    <span className="line-through opacity-60">{basePriceNum} TL</span>
+                    <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
+                    <Badge variant="destructive" className="ml-1.5 text-[10px]">
+                      -{activeCampaignForItem.discountPercent}%
+                    </Badge>
+                  </>
+                ) : (
+                  `${basePriceNum} TL`
+                )}
+              </span>
+            </div>
           </div>
         </div>
 
@@ -248,25 +269,13 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             <Label className="text-base font-semibold text-foreground">Coffee Strength</Label>
             <p className="mt-1 text-sm text-muted-foreground">How intense do you want it?</p>
             <div className="mt-4 flex gap-3">
-              <Button
-                variant={coffeeStrength === "smooth" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setCoffeeStrength("smooth")}
-              >
+              <Button variant={coffeeStrength === "smooth" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("smooth")}>
                 Smooth
               </Button>
-              <Button
-                variant={coffeeStrength === "balanced" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setCoffeeStrength("balanced")}
-              >
+              <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
                 Balanced
               </Button>
-              <Button
-                variant={coffeeStrength === "strong" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setCoffeeStrength("strong")}
-              >
+              <Button variant={coffeeStrength === "strong" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("strong")}>
                 Strong
               </Button>
             </div>
@@ -289,18 +298,10 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           <Card className="p-6">
             <Label className="text-base font-semibold text-foreground">Espresso Shot</Label>
             <div className="mt-4 flex gap-3">
-              <Button
-                variant={shot === "single" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setShot("single")}
-              >
+              <Button variant={shot === "single" ? "default" : "outline"} className="flex-1" onClick={() => setShot("single")}>
                 Single
               </Button>
-              <Button
-                variant={shot === "double" ? "default" : "outline"}
-                className="flex-1"
-                onClick={() => setShot("double")}
-              >
+              <Button variant={shot === "double" ? "default" : "outline"} className="flex-1" onClick={() => setShot("double")}>
                 Double
               </Button>
             </div>
@@ -311,25 +312,13 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Milk Type</Label>
               <div className="mt-4 flex gap-3">
-                <Button
-                  variant={milkType === "whole" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setMilkType("whole")}
-                >
+                <Button variant={milkType === "whole" ? "default" : "outline"} className="flex-1" onClick={() => setMilkType("whole")}>
                   Whole
                 </Button>
-                <Button
-                  variant={milkType === "lactose-free" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setMilkType("lactose-free")}
-                >
+                <Button variant={milkType === "lactose-free" ? "default" : "outline"} className="flex-1" onClick={() => setMilkType("lactose-free")}>
                   Lactose-Free
                 </Button>
-                <Button
-                  variant={milkType === "oat" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setMilkType("oat")}
-                >
+                <Button variant={milkType === "oat" ? "default" : "outline"} className="flex-1" onClick={() => setMilkType("oat")}>
                   Oat
                 </Button>
               </div>
@@ -342,12 +331,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             <p className="mt-1 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
             <div className="mt-4 flex gap-3">
               {(["small", "medium", "large"] as const).map((size) => (
-                <Button
-                  key={size}
-                  variant={cupSize === size ? "default" : "outline"}
-                  className="flex-1 capitalize"
-                  onClick={() => setCupSize(size)}
-                >
+                <Button key={size} variant={cupSize === size ? "default" : "outline"} className="flex-1 capitalize" onClick={() => setCupSize(size)}>
                   {size}
                 </Button>
               ))}
@@ -361,43 +345,23 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
               {isIced ? (
                 // Soğuk içecekler: sadece Plastic ve Glass
                 <>
-                  <Button
-                    variant={cupType === "plastic" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setCupType("plastic")}
-                  >
+                  <Button variant={cupType === "plastic" ? "default" : "outline"} className="flex-1" onClick={() => setCupType("plastic")}>
                     Plastic
                   </Button>
-                  <Button
-                    variant={cupType === "glass" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setCupType("glass")}
-                  >
+                  <Button variant={cupType === "glass" ? "default" : "outline"} className="flex-1" onClick={() => setCupType("glass")}>
                     Glass
                   </Button>
                 </>
               ) : (
                 // Sıcak içecekler: Paper, Glass, Porcelain
                 <>
-                  <Button
-                    variant={cupType === "paper" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setCupType("paper")}
-                  >
+                  <Button variant={cupType === "paper" ? "default" : "outline"} className="flex-1" onClick={() => setCupType("paper")}>
                     Paper
                   </Button>
-                  <Button
-                    variant={cupType === "glass" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setCupType("glass")}
-                  >
+                  <Button variant={cupType === "glass" ? "default" : "outline"} className="flex-1" onClick={() => setCupType("glass")}>
                     Glass
                   </Button>
-                  <Button
-                    variant={cupType === "porcelain" ? "default" : "outline"}
-                    className="flex-1"
-                    onClick={() => setCupType("porcelain")}
-                  >
+                  <Button variant={cupType === "porcelain" ? "default" : "outline"} className="flex-1" onClick={() => setCupType("porcelain")}>
                     Porcelain
                   </Button>
                 </>
@@ -411,25 +375,13 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
               <Label className="text-base font-semibold text-foreground">Chocolate Type</Label>
               <p className="mt-1 text-sm text-muted-foreground">Choose your chocolate</p>
               <div className="mt-4 flex gap-3">
-                <Button
-                  variant={chocolateType === "white" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setChocolateType("white")}
-                >
+                <Button variant={chocolateType === "white" ? "default" : "outline"} className="flex-1" onClick={() => setChocolateType("white")}>
                   White
                 </Button>
-                <Button
-                  variant={chocolateType === "milk" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setChocolateType("milk")}
-                >
+                <Button variant={chocolateType === "milk" ? "default" : "outline"} className="flex-1" onClick={() => setChocolateType("milk")}>
                   Milk
                 </Button>
-                <Button
-                  variant={chocolateType === "dark" ? "default" : "outline"}
-                  className="flex-1"
-                  onClick={() => setChocolateType("dark")}
-                >
+                <Button variant={chocolateType === "dark" ? "default" : "outline"} className="flex-1" onClick={() => setChocolateType("dark")}>
                   Dark
                 </Button>
               </div>
@@ -440,23 +392,13 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           {!noMilk && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Add Syrups</Label>
-              <p className="mt-1 text-sm text-muted-foreground">
-                Max 2 syrups · +10 TL each
-                {syrups.length >= 2 && <span className="ml-2 text-amber-500 font-medium">Max reached</span>}
-              </p>
+              <p className="mt-1 text-sm text-muted-foreground">Max 2 syrups · +10 TL each {syrups.length >= 2 && <span className="ml-2 text-amber-500 font-medium">Max reached</span>}</p>
               <div className="mt-4 flex flex-wrap gap-2">
                 {availableSyrups.map((syrup) => {
                   const isSelected = syrups.includes(syrup)
                   const isDisabled = !isSelected && syrups.length >= 2
                   return (
-                    <Badge
-                      key={syrup}
-                      variant={isSelected ? "default" : "outline"}
-                      className={`px-4 py-2 transition-opacity ${
-                        isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"
-                      }`}
-                      onClick={() => !isDisabled && toggleSyrup(syrup)}
-                    >
+                    <Badge key={syrup} variant={isSelected ? "default" : "outline"} className={`px-4 py-2 transition-opacity ${isDisabled ? "opacity-40 cursor-not-allowed" : "cursor-pointer"}`} onClick={() => !isDisabled && toggleSyrup(syrup)}>
                       {syrup}
                     </Badge>
                   )
@@ -480,11 +422,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           </Card>
 
           {/* Place Order Button */}
-          <Button
-            size="lg"
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={handlePlaceOrderClick}
-          >
+          <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePlaceOrderClick}>
             <Coffee className="mr-2 h-5 w-5" />
             Place Order
           </Button>
@@ -492,14 +430,14 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           {/* Customer Reviews for this coffee */}
           {(() => {
             const itemReviews = orders.filter(
-              (o) =>
+              (o: Order) =>
                 o.rating &&
                 o.review &&
                 preselectedItem &&
                 (o.itemName || "").toLowerCase() === preselectedItem.name.toLowerCase()
             )
             if (itemReviews.length === 0) return null
-            const avg = itemReviews.reduce((s, o) => s + (o.rating || 0), 0) / itemReviews.length
+            const avg = itemReviews.reduce((sum: number, o: Order) => sum + (o.rating || 0), 0) / itemReviews.length
             return (
               <div className="space-y-3 pt-2">
                 <div className="flex items-center justify-between">
@@ -513,25 +451,14 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                 {itemReviews.map((o) => (
                   <Card key={o.id} className="p-4 space-y-2">
                     <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-foreground">
-                        {o.reviewerName || "Anonymous"}
-                      </span>
+                      <span className="text-sm font-medium text-foreground">{o.reviewerName || "Anonymous"}</span>
                       <div className="flex gap-0.5">
                         {Array.from({ length: 5 }).map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3.5 w-3.5 ${
-                              i < (o.rating || 0)
-                                ? "fill-amber-400 text-amber-400"
-                                : "fill-muted text-muted"
-                            }`}
-                          />
+                          <Star key={i} className={`h-3.5 w-3.5 ${i < (o.rating || 0) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`} />
                         ))}
                       </div>
                     </div>
-                    {o.review && (
-                      <p className="text-sm text-muted-foreground">&ldquo;{o.review}&rdquo;</p>
-                    )}
+                    {o.review && <p className="text-sm text-muted-foreground">&ldquo;{o.review}&rdquo;</p>}
                   </Card>
                 ))}
               </div>
@@ -542,13 +469,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
       {/* Confirmation Popup */}
       {showConfirm && (
-        <OrderConfirmPopup
-          order={buildOrder()}
-          itemName={preselectedItem?.name || "Custom Coffee"}
-          price={calculatePrice()}
-          onConfirm={handleConfirm}
-          onCancel={handleCancel}
-        />
+        <OrderConfirmPopup order={buildOrder()} itemName={preselectedItem?.name || "Custom Coffee"} price={calculatePrice()} onConfirm={handleConfirm} onCancel={handleCancel} />
       )}
     </>
   )

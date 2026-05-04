@@ -5,96 +5,36 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Coffee, ArrowLeft } from "lucide-react"
-
-interface MenuItem {
-  id: string
-  name: string
-  description: string
-  price: string
-  popular?: boolean
-}
+import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
+import { HOT_MENU_ITEMS, ICED_MENU_ITEMS, type MenuItem } from "@/lib/menu-items"
 
 interface MenuViewProps {
   onBack: () => void
-  onSelectItem: (item: MenuItem) => void
+  onSelectItem: (item: { name: string; price: string }) => void
 }
 
 export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
-  const hotMenuItems: MenuItem[] = [
-    {
-      id: "spanish-latte",
-      name: "Spanish Latte",
-      description: "Sweet and creamier flavour, our special recipe",
-      price: "120 TL",
-      popular: true,
-    },
-    {
-      id: "latte",
-      name: "Latte",
-      description: "Espresso with steamed milk and light foam",
-      price: "100 TL",
-      popular: true,
-    },
-    {
-      id: "americano",
-      name: "Americano",
-      description: "Espresso with hot water",
-      price: "100 TL",
-    },
-    {
-      id: "cappuccino",
-      name: "Cappuccino",
-      description: "Equal parts espresso, steamed milk, and foam",
-      price: "100 TL",
-    },
-    {
-      id: "mocha",
-      name: "Mocha",
-      description: "Espresso with chocolate and steamed milk",
-      price: "100 TL",
-    },
-    {
-      id: "espresso",
-      name: "Espresso",
-      description: "Classic Italian coffee shot",
-      price: "100 TL",
-    },
-  ]
+  const { applyDiscount } = useBroadcastCampaigns()
 
-  const icedMenuItems: MenuItem[] = [
-    {
-      id: "iced-spanish-latte",
-      name: "Iced Spanish Latte",
-      description: "Sweet and refreshing creamier flavour over ice",
-      price: "130 TL",
-      popular: true,
-    },
-    {
-      id: "iced-latte",
-      name: "Iced Latte",
-      description: "Espresso with cold milk poured over ice",
-      price: "110 TL",
-    },
-    {
-      id: "iced-americano",
-      name: "Iced Americano",
-      description: "Espresso with cold water and ice",
-      price: "110 TL",
-    },
-    {
-      id: "cold-brew",
-      name: "Cold Brew",
-      description: "Smooth, slowly steeped cold coffee",
-      price: "120 TL",
-      popular: true,
-    },
-    {
-      id: "iced-mocha",
-      name: "Iced Mocha",
-      description: "Espresso with chocolate and cold milk over ice",
-      price: "120 TL",
-    },
-  ]
+  const hotMenuItems: MenuItem[] = HOT_MENU_ITEMS.map((item) => {
+    const discounted = applyDiscount(item.price, item.id)
+    return {
+      ...item,
+      originalPrice: item.price,
+      price: discounted.finalPrice,
+      discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
+    }
+  })
+
+  const icedMenuItems: MenuItem[] = ICED_MENU_ITEMS.map((item) => {
+    const discounted = applyDiscount(item.price, item.id)
+    return {
+      ...item,
+      originalPrice: item.price,
+      price: discounted.finalPrice,
+      discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
+    }
+  })
 
   const renderMenuItems = (items: MenuItem[]) => (
     <div className="grid grid-cols-2 gap-4 pb-6 mt-6">
@@ -116,11 +56,23 @@ export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
             )}
             <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
             <div className="mt-auto pt-3">
-              <p className="mb-2 text-lg font-bold text-primary">{item.price}</p>
+              <div className="flex items-center justify-center gap-2 mb-2">
+                {item.discountPercent && item.discountPercent > 0 ? (
+                  <>
+                    <span className="text-xs line-through text-muted-foreground">{item.originalPrice} TL</span>
+                    <span className="text-lg font-bold text-destructive">{item.price} TL</span>
+                    <Badge variant="destructive" className="text-[10px]">
+                      -{item.discountPercent}%
+                    </Badge>
+                  </>
+                ) : (
+                  <span className="text-lg font-bold text-primary">{item.price} TL</span>
+                )}
+              </div>
               <Button
                 size="sm"
                 className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => onSelectItem(item)}
+                onClick={() => onSelectItem({ name: item.name, price: `${item.price} TL` })}
               >
                 Order
               </Button>

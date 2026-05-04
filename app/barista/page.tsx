@@ -1,7 +1,7 @@
 "use client"
 
 import Image from "next/image"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { BaristaDashboard } from "@/components/barista-dashboard"
 import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
 import { useToast } from "@/hooks/use-toast"
@@ -16,9 +16,18 @@ import {
   Star,
   Trash2,
   MessageSquare,
+  Lock,
+  Eye,
+  EyeOff,
+  LogOut,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import { formatOrderNumber } from "@/lib/order-number"
+import { CampaignForm } from "@/components/campaign-form"
+import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
+
+const BARISTA_CODE = "1234"
 
 type SidebarItem = {
   id: string
@@ -37,8 +46,35 @@ const sidebarItems: SidebarItem[] = [
 
 export default function BaristaPage() {
   const { orders, broadcastUpdateStatus, broadcastDeleteReview } = useBroadcastOrders()
+  const { campaigns, broadcastCreateCampaign, broadcastDeleteCampaign } = useBroadcastCampaigns()
   const { toast } = useToast()
   const [activeSection, setActiveSection] = useState("orders")
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const [codeInput, setCodeInput] = useState("")
+  const [showCode, setShowCode] = useState(false)
+  const [codeError, setCodeError] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setTimeout(() => inputRef.current?.focus(), 100)
+    }
+  }, [isAuthenticated])
+
+  const handleLogin = () => {
+    if (codeInput === BARISTA_CODE) {
+      setIsAuthenticated(true)
+      setCodeError(false)
+    } else {
+      setCodeError(true)
+      setCodeInput("")
+      setTimeout(() => inputRef.current?.focus(), 50)
+    }
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") handleLogin()
+  }
 
   // Sound notification for new orders
   useEffect(() => {
@@ -120,6 +156,70 @@ export default function BaristaPage() {
   // Tüm yorumları (rating olan siparişler)
   const reviewedOrders = orders.filter((o) => o.rating && o.review)
 
+  if (!isAuthenticated) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+        <div className="w-full max-w-sm space-y-8">
+          {/* Logo */}
+          <div className="flex flex-col items-center gap-4">
+            <Image
+              src="/images/bir-20ba-c5-9fl-c4-b1k-20ekleyin-282-29.png"
+              alt="Coffee & Code Logo"
+              width={120}
+              height={120}
+              priority
+              className="h-auto w-28 rounded-2xl"
+            />
+            <div className="text-center space-y-1">
+              <h1 className="text-xl font-bold text-foreground">Barista Panel</h1>
+              <p className="text-sm text-muted-foreground">Enter your barista code</p>
+            </div>
+          </div>
+
+          {/* Code input card */}
+          <div className="rounded-2xl border border-border bg-card p-6 shadow-sm space-y-4">
+            <div className="flex items-center gap-2 mb-1">
+              <Lock className="h-4 w-4 text-muted-foreground" />
+              <span className="text-sm font-medium text-foreground">Barista Code</span>
+            </div>
+
+            <div className="relative">
+              <Input
+                ref={inputRef}
+                type={showCode ? "text" : "password"}
+                placeholder="Enter your barista code"
+                value={codeInput}
+                onChange={(e) => {
+                  setCodeInput(e.target.value)
+                  setCodeError(false)
+                }}
+                onKeyDown={handleKeyDown}
+                className={`pr-10 text-base tracking-widest ${codeError ? "border-destructive focus-visible:ring-destructive" : ""}`}
+                autoComplete="off"
+              />
+              <button
+                type="button"
+                onClick={() => setShowCode((v) => !v)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                tabIndex={-1}
+              >
+                {showCode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+              </button>
+            </div>
+
+            {codeError && (
+              <p className="text-xs text-destructive">Incorrect code. Please try again.</p>
+            )}
+
+            <Button className="w-full" onClick={handleLogin}>
+              Sign In
+            </Button>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="flex min-h-screen bg-background">
       {/* Sidebar */}
@@ -165,7 +265,14 @@ export default function BaristaPage() {
         </nav>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border">
+        <div className="p-4 border-t border-border space-y-2">
+          <button
+            onClick={() => { setIsAuthenticated(false); setCodeInput("") }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5 shrink-0" />
+            <span>Sign Out</span>
+          </button>
           <p className="text-[10px] text-muted-foreground text-center">Coffee & Code · Barista Panel</p>
         </div>
       </aside>
@@ -174,6 +281,13 @@ export default function BaristaPage() {
       <main className="flex-1 overflow-auto p-6">
         {activeSection === "orders" ? (
           <BaristaDashboard orders={orders} onUpdateOrderStatus={handleUpdateOrderStatus} />
+        ) : activeSection === "campaign" ? (
+          /* ── Create Campaign Section ── */
+          <CampaignForm
+            campaigns={campaigns}
+            onCreateCampaign={broadcastCreateCampaign}
+            onDeleteCampaign={broadcastDeleteCampaign}
+          />
         ) : activeSection === "surveys" ? (
           /* ── Customer Feedback Section ── */
           <div className="space-y-6">

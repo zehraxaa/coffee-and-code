@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -62,7 +63,9 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
   const activeOrders = orders.filter((order) => order.status !== "completed" && order.status !== "cancelled")
   const pastOrders = orders.filter((order) => order.status === "completed" || order.status === "cancelled")
 
-  const renderOrderCard = (order: Order, index: number) => (
+  const renderOrderCard = (order: Order, index: number) => {
+    const isLatte = (order.itemName || "").toLowerCase() === "latte" || (order.itemName || "").toLowerCase() === "iced latte"
+    return (
     <motion.div
       key={order.id}
       initial={{ opacity: 0, y: 20 }}
@@ -73,12 +76,14 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
         <div className="flex items-start justify-between">
           <div className="flex gap-4">
             <div
-              className={`flex h-12 w-12 items-center justify-center rounded-full ${
+              className={`flex h-12 w-12 items-center justify-center rounded-full overflow-hidden ${
                 order.status === "ready" ? "bg-primary text-primary-foreground" : "bg-primary/10"
               }`}
             >
               {order.status === "ready" ? (
                 <CheckCircle className="h-6 w-6" />
+              ) : isLatte ? (
+                <Image src="/images/latte-hero.png" alt="Latte" width={48} height={48} className="h-full w-full object-cover" />
               ) : (
                 <Coffee className="h-6 w-6 text-primary" />
               )}
@@ -193,14 +198,14 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
             className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => onRateOrder(order.id)}
           >
-            Rate & Review
+            Rate Order
           </Button>
         )}
 
-        {/* Yorum gösterimi */}
+        {/* Star rating display */}
         {order.rating && (
           <div className="mt-4 rounded-lg border border-border bg-muted/30 p-3">
-            <div className="flex items-center justify-between mb-1.5">
+            <div className="flex items-center justify-between">
               <span className="text-xs font-semibold text-foreground">
                 {order.reviewerName || "Anonymous"}
               </span>
@@ -212,12 +217,12 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                 ))}
               </div>
             </div>
-            {order.review && <p className="text-xs text-muted-foreground">"{order.review}"</p>}
           </div>
         )}
       </Card>
     </motion.div>
   )
+  }
 
   return (
     <div className="space-y-6">

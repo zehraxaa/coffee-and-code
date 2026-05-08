@@ -4,16 +4,36 @@ export interface Campaign {
   id: string
   title: string
   description: string
-  /** ISO string */
+  /** ISO string — computed from endDate + endTime */
   expiresAt: string
+  /** Date range: "YYYY-MM-DD" */
+  startDate?: string
+  endDate?: string
+  /** Time range: "HH:MM" (24h) */
+  startTime?: string
+  endTime?: string
   /** Array of menu item IDs this discount applies to */
   applicableItemIds: string[]
   discountPercent: number
   /** base64 data URL or relative /images/... path */
   imageUrl?: string
-  /** Whether to show this image on the splash/promo screen */
-  showOnSplash: boolean
   createdAt: string
+}
+
+/** Standalone splash/opening banner image managed from barista panel */
+export interface SplashImage {
+  /** base64 data URL */
+  url: string
+  updatedAt: string
+}
+
+/** Coffee of the Month — set by barista */
+export interface CoffeeOfMonth {
+  name: string
+  description: string
+  origin: string
+  imageUrl?: string
+  updatedAt: string
 }
 
 export interface Order {

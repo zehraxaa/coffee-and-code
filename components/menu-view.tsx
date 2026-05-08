@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -7,6 +8,26 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Coffee, ArrowLeft } from "lucide-react"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import { HOT_MENU_ITEMS, ICED_MENU_ITEMS, type MenuItem } from "@/lib/menu-items"
+
+// ─────────────────────────────────────────────────────────────────
+// 📸 Her kahvenin kendi fotoğrafını buraya ekle:
+//    key  → menu-items.ts'deki item.id değeri
+//    value → /public/images/ altındaki dosya yolu
+// Fotoğrafı olmayan kahveler otomatik olarak ikon gösterir.
+// ─────────────────────────────────────────────────────────────────
+const COFFEE_IMAGES: Record<string, string> = {
+  "latte":              "/images/latte-hero.png",
+  "spanish-latte":   "/images/spanish-latte.png",
+  "americano":       "/images/americano.jpeg",
+  "cappuccino":      "/images/cappuccino.jpg",
+  "mocha":           "/images/mocha.png",
+  "espresso":        "/images/espresso.jpg",
+  "iced-latte":      "/images/iced-latte.jpg",
+  "iced-spanish-latte": "/images/iced-spanish-latte.jpg",
+  "iced-americano":  "/images/Iced-Americano.jpg",
+  "cold-brew":       "/images/cold-brew.png",
+  "iced-mocha":      "/images/iced-mocha.jpg",
+}
 
 interface MenuViewProps {
   onBack: () => void
@@ -38,48 +59,63 @@ export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
 
   const renderMenuItems = (items: MenuItem[]) => (
     <div className="grid grid-cols-2 gap-4 pb-6 mt-6">
-      {items.map((item) => (
-        <Card key={item.id} className="flex flex-col p-4 text-center border-border/50">
-          <div className="mb-3 flex justify-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-              <Coffee className="h-8 w-8 text-muted-foreground" />
+      {items.map((item) => {
+        const itemImage = COFFEE_IMAGES[item.id]
+        return (
+          <Card key={item.id} className="flex flex-col p-4 text-center border-border/50">
+            <div className="mb-3 flex justify-center">
+              {itemImage ? (
+                <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-primary/20">
+                  <Image
+                    src={itemImage}
+                    alt={item.name}
+                    width={64}
+                    height={64}
+                    className="h-full w-full object-cover"
+                  />
+                </div>
+              ) : (
+                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
+                  <Coffee className="h-8 w-8 text-muted-foreground" />
+                </div>
+              )}
             </div>
-          </div>
-          <div className="flex flex-1 flex-col">
-            <h3 className="text-md font-semibold text-foreground">{item.name}</h3>
-            {item.popular && (
-              <div className="my-1">
-                <Badge variant="secondary" className="text-[10px]">
-                  Popular
-                </Badge>
+            <div className="flex flex-1 flex-col">
+              <h3 className="text-md font-semibold text-foreground">{item.name}</h3>
+              {item.popular && (
+                <div className="my-1">
+                  <Badge variant="secondary" className="text-[10px]">
+                    Popular
+                  </Badge>
+                </div>
+              )}
+              <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
+              <div className="mt-auto pt-3">
+                <div className="flex items-center justify-center gap-2 mb-2">
+                  {item.discountPercent && item.discountPercent > 0 ? (
+                    <>
+                      <span className="text-xs line-through text-muted-foreground">{item.originalPrice} TL</span>
+                      <span className="text-lg font-bold text-destructive">{item.price} TL</span>
+                      <Badge variant="destructive" className="text-[10px]">
+                        -{item.discountPercent}%
+                      </Badge>
+                    </>
+                  ) : (
+                    <span className="text-lg font-bold text-primary">{item.price} TL</span>
+                  )}
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                  onClick={() => onSelectItem({ name: item.name, price: `${item.price} TL` })}
+                >
+                  Order
+                </Button>
               </div>
-            )}
-            <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
-            <div className="mt-auto pt-3">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                {item.discountPercent && item.discountPercent > 0 ? (
-                  <>
-                    <span className="text-xs line-through text-muted-foreground">{item.originalPrice} TL</span>
-                    <span className="text-lg font-bold text-destructive">{item.price} TL</span>
-                    <Badge variant="destructive" className="text-[10px]">
-                      -{item.discountPercent}%
-                    </Badge>
-                  </>
-                ) : (
-                  <span className="text-lg font-bold text-primary">{item.price} TL</span>
-                )}
-              </div>
-              <Button
-                size="sm"
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                onClick={() => onSelectItem({ name: item.name, price: `${item.price} TL` })}
-              >
-                Order
-              </Button>
             </div>
-          </div>
-        </Card>
-      ))}
+          </Card>
+        )
+      })}
     </div>
   )
 

@@ -8,9 +8,24 @@ type CampaignMessage =
   | { type: "CAMPAIGN_DELETED"; campaignId: string }
   | { type: "CAMPAIGNS_SYNC_REQUEST" }
   | { type: "CAMPAIGNS_SYNC_RESPONSE"; campaigns: Campaign[] }
+  | { type: "SPLASH_IMAGE_UPDATED"; url: string | null }
 
 const CHANNEL_NAME = "coffee_and_code_campaigns"
 const STORAGE_KEY = "cc_campaigns"
+const SPLASH_STORAGE_KEY = "cc_splash_image"
+
+function loadSplashImage(): string | null {
+  if (typeof window === "undefined") return null
+  try { return localStorage.getItem(SPLASH_STORAGE_KEY) } catch { return null }
+}
+
+function saveSplashImage(url: string | null) {
+  if (typeof window === "undefined") return
+  try {
+    if (url) localStorage.setItem(SPLASH_STORAGE_KEY, url)
+    else localStorage.removeItem(SPLASH_STORAGE_KEY)
+  } catch { /* ignore */ }
+}
 
 function loadFromStorage(): Campaign[] {
   if (typeof window === "undefined") return []
@@ -37,6 +52,7 @@ function saveToStorage(campaigns: Campaign[]) {
 
 export function useBroadcastCampaigns() {
   const [campaigns, setCampaigns] = useState<Campaign[]>([])
+  const [splashImageUrl, setSplashImageUrl] = useState<string | null>(null)
   const channelRef = useRef<BroadcastChannel | null>(null)
   const campaignsRef = useRef<Campaign[]>([])
 
@@ -53,6 +69,10 @@ export function useBroadcastCampaigns() {
       setCampaigns(stored)
       campaignsRef.current = stored
     }
+
+    // Splash image yükle
+    const storedSplash = loadSplashImage()
+    if (storedSplash) setSplashImageUrl(storedSplash)
 
     const channel = new BroadcastChannel(CHANNEL_NAME)
     channelRef.current = channel
@@ -87,6 +107,10 @@ export function useBroadcastCampaigns() {
             saveToStorage(msg.campaigns)
             return msg.campaigns
           })
+          break
+        case "SPLASH_IMAGE_UPDATED":
+          setSplashImageUrl(msg.url)
+          saveSplashImage(msg.url)
           break
       }
     }
@@ -123,15 +147,47 @@ export function useBroadcastCampaigns() {
     } as CampaignMessage)
   }, [])
 
-  /** Verilen item ID'sine uygulanan aktif kampanyayı döner */
+  const broadcastUpdateSplashImage = useCallback((url: string | null) => {
+    setSplashImageUrl(url)
+    saveSplashImage(url)
+    channelRef.current?.postMessage({
+      type: "SPLASH_IMAGE_UPDATED",
+      url,
+    } as CampaignMessage)
+  }, [])
+
+  /** Verilen item ID'sine uygulanan aktif kampanyayı döner (zaman aralığı kontrolü dahil) */
   const getActiveCampaignForItem = useCallback(
     (itemId: string): Campaign | undefined => {
       const now = new Date()
-      return campaigns.find(
-        (c) =>
-          new Date(c.expiresAt) > now &&
-          (c.applicableItemIds.includes(itemId) || c.applicableItemIds.includes("all"))
-      )
+      return campaigns.find((c) => {
+        // Kampanya süresi dolmuş mu?
+        if (new Date(c.expiresAt) <= now) return false
+
+        // Ürün eşleşiyor mu?
+        const itemMatch =
+          c.applicableItemIds.includes(itemId) ||
+          c.applicableItemIds.includes("all")
+        if (!itemMatch) return false
+
+        // Tarih + saat aralığı kontrolü
+        if (c.startDate && c.endDate) {
+          const todayStr = now.toISOString().split("T")[0] // "YYYY-MM-DD"
+          if (todayStr < c.startDate || todayStr > c.endDate) return false
+
+          // Saat aralığı
+          if (c.startTime && c.endTime) {
+            const currentMinutes = now.getHours() * 60 + now.getMinutes()
+            const [sh, sm] = c.startTime.split(":").map(Number)
+            const [eh, em] = c.endTime.split(":").map(Number)
+            const startMinutes = sh * 60 + sm
+            const endMinutes = eh * 60 + em
+            if (currentMinutes < startMinutes || currentMinutes > endMinutes) return false
+          }
+        }
+
+        return true
+      })
     },
     [campaigns]
   )
@@ -149,8 +205,10 @@ export function useBroadcastCampaigns() {
 
   return {
     campaigns,
+    splashImageUrl,
     broadcastCreateCampaign,
     broadcastDeleteCampaign,
+    broadcastUpdateSplashImage,
     getActiveCampaignForItem,
     applyDiscount,
   }

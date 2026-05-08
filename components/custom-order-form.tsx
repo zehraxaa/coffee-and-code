@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import Image from "next/image"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
@@ -233,35 +234,81 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     onBack()
   }
 
+  const isLatte = preselectedItem?.name?.toLowerCase() === "latte" || preselectedItem?.name?.toLowerCase() === "iced latte"
+
   return (
     <>
-      <div className="space-y-6">
-        {/* Header */}
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={onBack}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground">
-              {preselectedItem ? `Customize ${preselectedItem.name}` : "Custom Order"}
-            </h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-              <span>
-                {activeCampaignForItem ? (
-                  <>
-                    <span className="line-through opacity-60">{basePriceNum} TL</span>
-                    <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
-                    <Badge variant="destructive" className="ml-1.5 text-[10px]">
-                      -{activeCampaignForItem.discountPercent}%
-                    </Badge>
-                  </>
-                ) : (
-                  `${basePriceNum} TL`
-                )}
-              </span>
+      <div className={isLatte ? "relative" : "space-y-6"}>
+        {isLatte ? (
+          <>
+            {/* Hero image — flush top, fades out at bottom */}
+            <div className="relative w-full h-72 -mx-0 overflow-hidden">
+              <Image
+                src="/images/latte-hero.png"
+                alt="Latte"
+                fill
+                className="object-cover object-center"
+                priority
+              />
+              {/* Bottom fade */}
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background" />
+            </div>
+
+            {/* Header — positioned below the image */}
+            <div className="flex items-center gap-4 mt-4 px-0">
+              <Button variant="ghost" size="icon" onClick={onBack}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div>
+                <h1 className="text-2xl font-bold text-foreground">
+                  {preselectedItem ? `Customize ${preselectedItem.name}` : "Custom Order"}
+                </h1>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <span>
+                    {activeCampaignForItem ? (
+                      <>
+                        <span className="line-through opacity-60">{basePriceNum} TL</span>
+                        <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
+                        <Badge variant="destructive" className="ml-1.5 text-[10px]">
+                          -{activeCampaignForItem.discountPercent}%
+                        </Badge>
+                      </>
+                    ) : (
+                      `${basePriceNum} TL`
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Non-latte: original header */
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={onBack}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold text-foreground">
+                {preselectedItem ? `Customize ${preselectedItem.name}` : "Custom Order"}
+              </h1>
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <span>
+                  {activeCampaignForItem ? (
+                    <>
+                      <span className="line-through opacity-60">{basePriceNum} TL</span>
+                      <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
+                      <Badge variant="destructive" className="ml-1.5 text-[10px]">
+                        -{activeCampaignForItem.discountPercent}%
+                      </Badge>
+                    </>
+                  ) : (
+                    `${basePriceNum} TL`
+                  )}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        )}
 
         <div className="space-y-6 pb-6">
           {/* Coffee Strength */}
@@ -432,7 +479,6 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             const itemReviews = orders.filter(
               (o: Order) =>
                 o.rating &&
-                o.review &&
                 preselectedItem &&
                 (o.itemName || "").toLowerCase() === preselectedItem.name.toLowerCase()
             )

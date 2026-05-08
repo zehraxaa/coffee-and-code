@@ -3,11 +3,22 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Coffee, Star, ChevronRight, Sparkles, Quote, X } from "lucide-react"
+import { Coffee, Star, ChevronRight, Sparkles, X } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import Image from "next/image"
-import type { Campaign } from "@/lib/types"
+import type { Campaign, Order, CoffeeOfMonth } from "@/lib/types"
+import { ALL_MENU_ITEMS } from "@/lib/menu-items"
+
+const PROMO_STORAGE_KEY = "cc_splash_image"
+const COFFEE_OF_MONTH_KEY = "cc_coffee_of_month"
+
+const DEFAULT_COFFEE: CoffeeOfMonth = {
+  name: "Spanish Latte",
+  description: "Sweet and creamier flavour",
+  origin: "Spain",
+  updatedAt: "",
+}
 
 interface HomeViewProps {
   hasSeenPromo: boolean
@@ -19,6 +30,7 @@ interface HomeViewProps {
   onOrderCoffeeOfMonth: () => void
   onOrderFavorite: (item: { name: string; price: string }) => void
   campaigns?: Campaign[]
+  orders?: Order[]
 }
 
 export function HomeView({
@@ -31,10 +43,28 @@ export function HomeView({
   onOrderCoffeeOfMonth,
   onOrderFavorite,
   campaigns = [],
+  orders = [],
 }: HomeViewProps) {
   const totalStamps = 10
-
   const [currentCampaign, setCurrentCampaign] = useState(0)
+  const [promoImageUrl, setPromoImageUrl] = useState<string | null>(null)
+
+  // Load barista-set promo image
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(PROMO_STORAGE_KEY)
+      if (stored) setPromoImageUrl(stored)
+    } catch { /* ignore */ }
+  }, [])
+
+  // Load barista-set coffee of the month
+  const [coffeeOfMonth, setCoffeeOfMonth] = useState<CoffeeOfMonth>(DEFAULT_COFFEE)
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(COFFEE_OF_MONTH_KEY)
+      if (stored) setCoffeeOfMonth(JSON.parse(stored))
+    } catch { /* ignore */ }
+  }, [])
 
   // Filter active campaigns (not expired)
   const activeCampaigns = campaigns.filter((c) => new Date(c.expiresAt) > new Date())
@@ -47,27 +77,54 @@ export function HomeView({
     return () => clearInterval(interval)
   }, [activeCampaigns.length])
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentCampaign((prev) => (prev + 1) % campaigns.length)
-    }, 5000)
-    return () => clearInterval(interval)
-  }, [campaigns.length])
+  // ── Dynamic Customer Favorites ──────────────────────────────
+  // Group completed orders with ratings by itemName, compute avg rating + count
+  const dynamicFavorites = useMemo(() => {
+    const ratingMap: Record<string, { total: number; count: number; price: string }> = {}
 
-  const favorites = [
-    { id: 1, name: "Caramel Latte", price: "100 TL", rating: 4.8 },
-    { id: 2, name: "Vanilla Cappuccino", price: "100 TL", rating: 4.9 },
-    { id: 3, name: "Mocha Frappuccino", price: "100 TL", rating: 4.7 },
-  ]
+    orders.forEach((o) => {
+      if (!o.rating || !o.itemName) return
+      const key = o.itemName
+      if (!ratingMap[key]) {
+        // Find price from menu items
+        const menuItem = ALL_MENU_ITEMS.find(
+          (m) => m.name.toLowerCase() === key.toLowerCase()
+        )
+        ratingMap[key] = {
+          total: 0,
+          count: 0,
+          price: menuItem ? `${menuItem.price} TL` : "— TL",
+        }
+      }
+      ratingMap[key].total += o.rating
+      ratingMap[key].count += 1
+    })
 
-  const coffeeOfMonth = {
-    name: "Spanish Latte",
-    description: "Sweet and creamier flavour",
-    origin: "Spain",
-  }
+    const sorted = Object.entries(ratingMap)
+      .map(([name, { total, count, price }]) => ({
+        name,
+        price,
+        rating: Math.round((total / count) * 10) / 10,
+        count,
+      }))
+      .sort((a, b) => b.rating - a.rating || b.count - a.count)
+      .slice(0, 3)
+
+    // If not enough real data, fall back to static placeholders
+    if (sorted.length === 0) {
+      return [
+        { name: "Latte", price: "100 TL", rating: null, count: 0 },
+        { name: "Cappuccino", price: "100 TL", rating: null, count: 0 },
+        { name: "Mocha", price: "100 TL", rating: null, count: 0 },
+      ]
+    }
+    return sorted
+  }, [orders])
+
 
   return (
     <>
+      {/* Promo Popup — barista controls the image */}
       <AnimatePresence>
         {!hasSeenPromo && (
           <motion.div
@@ -87,7 +144,7 @@ export function HomeView({
               </Button>
               <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
                 <Image
-                  src="/images/spanish-latte-promo-v2.jpg"
+                  src={promoImageUrl ?? "/images/spanish-latte-promo-v2.jpg"}
                   alt="Coffee of the Month Promo"
                   fill
                   className="object-cover"
@@ -127,25 +184,23 @@ export function HomeView({
             {Array.from({ length: totalStamps }).map((_, i) => (
               <div
                 key={i}
-                className={`h-8 w-8 rounded-full border-2 border-primary-foreground ${
-                  i < loyaltyStamps ? "bg-primary-foreground" : "bg-primary-foreground/20"
-                }`}
+                className={`h-8 w-8 rounded-full border-2 border-primary-foreground ${i < loyaltyStamps ? "bg-primary-foreground" : "bg-primary-foreground/20"
+                  }`}
               >
                 {i < loyaltyStamps && <Coffee className="h-full w-full p-1 text-primary" />}
               </div>
             ))}
           </div>
           <p className="mt-3 text-xs text-primary-foreground/80">
-            {loyaltyStamps >= 10 ? "🎉 Free coffee earned! Redeem below." : `${totalStamps - loyaltyStamps} more stamps for a free drink!`}
+            {loyaltyStamps >= 10
+              ? "🎉 Free coffee earned! Redeem below."
+              : `${totalStamps - loyaltyStamps} more stamps for a free drink!`}
           </p>
         </Card>
 
         {/* Free Coffee Coupon */}
         {freeCoffeeCode && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-          >
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}>
             <Card className="overflow-hidden border-2 border-green-500 bg-gradient-to-br from-green-50 to-emerald-50 dark:from-green-950 dark:to-emerald-950 p-5">
               <div className="flex items-center gap-3 mb-3">
                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500">
@@ -157,12 +212,11 @@ export function HomeView({
                 </div>
               </div>
               <div className="rounded-lg bg-white dark:bg-black/30 border border-green-300 px-4 py-3 text-center mb-3">
-                <span className="font-mono text-2xl font-bold tracking-widest text-green-700 dark:text-green-300">{freeCoffeeCode}</span>
+                <span className="font-mono text-2xl font-bold tracking-widest text-green-700 dark:text-green-300">
+                  {freeCoffeeCode}
+                </span>
               </div>
-              <Button
-                className="w-full bg-green-500 hover:bg-green-600 text-white"
-                onClick={onRedeemFreeCoffee}
-              >
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white" onClick={onRedeemFreeCoffee}>
                 Redeem Now
               </Button>
             </Card>
@@ -188,31 +242,36 @@ export function HomeView({
                     transition={{ duration: 0.5 }}
                     className="absolute inset-0"
                   >
-                    <Card
-                      className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden ${
-                        activeCampaigns[currentCampaign].imageUrl
-                          ? "bg-transparent"
-                          : "bg-gradient-to-br from-primary to-accent"
-                      }`}
-                    >
-                      {activeCampaigns[currentCampaign].imageUrl && (
-                        <div className="absolute inset-0">
-                          <Image
-                            src={activeCampaigns[currentCampaign].imageUrl!}
-                            alt={activeCampaigns[currentCampaign].title}
-                            fill
-                            className="object-cover"
-                          />
-                          <div className="absolute inset-0 bg-black/50" />
+                    {activeCampaigns[currentCampaign] && (
+                      <Card
+                        className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden rounded-2xl ${activeCampaigns[currentCampaign].imageUrl
+                            ? "bg-transparent"
+                            : "bg-gradient-to-br from-primary to-accent"
+                          }`}
+                      >
+                        {activeCampaigns[currentCampaign].imageUrl && (
+                          <div className="absolute inset-0 rounded-2xl overflow-hidden">
+                            <Image
+                              src={activeCampaigns[currentCampaign].imageUrl!}
+                              alt={activeCampaigns[currentCampaign].title}
+                              fill
+                              className="object-cover rounded-2xl"
+                            />
+                            <div className="absolute inset-0 bg-black/50 rounded-2xl" />
+                          </div>
+                        )}
+                        <div className="relative z-10">
+                          <h3 className="text-xl font-bold">
+                            {activeCampaigns[currentCampaign].title}
+                          </h3>
+                          {activeCampaigns[currentCampaign].description && (
+                            <p className="mt-1 text-sm opacity-90">
+                              {activeCampaigns[currentCampaign].description}
+                            </p>
+                          )}
                         </div>
-                      )}
-                      <div className="relative z-10">
-                        <h3 className="text-xl font-bold">{activeCampaigns[currentCampaign].title}</h3>
-                        <p className="mt-1 text-sm opacity-90">
-                          {activeCampaigns[currentCampaign].description}
-                        </p>
-                      </div>
-                    </Card>
+                      </Card>
+                    )}
                   </motion.div>
                 </AnimatePresence>
               </div>
@@ -220,9 +279,8 @@ export function HomeView({
                 {activeCampaigns.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-2 w-2 rounded-full transition-colors ${
-                      index === currentCampaign ? "bg-primary" : "bg-muted"
-                    }`}
+                    className={`h-2 w-2 rounded-full transition-colors ${index === currentCampaign ? "bg-primary" : "bg-muted"
+                      }`}
                   />
                 ))}
               </div>
@@ -230,76 +288,146 @@ export function HomeView({
           )}
         </div>
 
-
-      {/* Coffee of the Month */}
-      <Card className="p-6">
-        <div className="mb-3 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-foreground">Coffee of the Month</h2>
-          <Badge variant="secondary">Featured</Badge>
-        </div>
-        <div className="space-y-4">
-          <div>
-            <h3 className="text-xl font-bold text-primary">{coffeeOfMonth.name}</h3>
-            <p className="text-sm text-muted-foreground">{coffeeOfMonth.description}</p>
-            <div className="mt-2 flex items-center gap-2">
-              <Badge variant="outline" className="text-xs">
-                {coffeeOfMonth.origin}
-              </Badge>
-            </div>
-          </div>
-          <Button
-            className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-            onClick={onOrderCoffeeOfMonth}
-          >
-            <Coffee className="mr-2 h-4 w-4" />
-            Order Now
-          </Button>
-        </div>
-      </Card>
-
-
-
-      {/* Customer Favorites */}
-      <div>
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Customer Favorites</h2>
-        <div className="space-y-3">
-          {favorites.map((item) => (
-            <Card
-              key={item.id}
-              className="cursor-pointer p-4 transition-colors hover:bg-muted/50"
-              onClick={() => onOrderFavorite(item)}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted">
-                    <Coffee className="h-6 w-6 text-muted-foreground" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{item.name}</h3>
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm text-primary">{item.price}</p>
-                      <div className="flex items-center gap-1">
-                        <Star className="h-3 w-3 fill-accent text-accent" />
-                        <span className="text-xs text-muted-foreground">{item.rating}</span>
+        {/* Coffee of the Month */}
+        <Card className="overflow-hidden p-0">
+          <div className="relative">
+            {coffeeOfMonth.imageUrl ? (
+              <>
+                <div className="relative w-full h-48">
+                  <Image src={coffeeOfMonth.imageUrl} alt={coffeeOfMonth.name} fill className="object-cover" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
+                </div>
+                <div className="absolute bottom-0 left-0 right-0 p-5">
+                  <div className="flex items-end justify-between gap-2">
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <h2 className="text-sm font-semibold text-white/70">Coffee of the Month</h2>
+                        <Badge variant="secondary" className="text-[10px]">Featured</Badge>
                       </div>
+                      <h3 className="text-2xl font-bold text-white">{coffeeOfMonth.name}</h3>
+                      <p className="text-sm text-white/80 mt-0.5">{coffeeOfMonth.description}</p>
+                      {coffeeOfMonth.origin && (
+                        <Badge variant="outline" className="text-xs mt-1 border-white/30 text-white">
+                          {coffeeOfMonth.origin}
+                        </Badge>
+                      )}
                     </div>
                   </div>
+                  <Button
+                    className="w-full mt-3 bg-white text-foreground hover:bg-white/90"
+                    onClick={onOrderCoffeeOfMonth}
+                  >
+                    <Coffee className="mr-2 h-4 w-4" />
+                    Order Now
+                  </Button>
                 </div>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+              </>
+            ) : (
+              <div className="p-6">
+                <div className="mb-3 flex items-center justify-between">
+                  <h2 className="text-lg font-semibold text-foreground">Coffee of the Month</h2>
+                  <Badge variant="secondary">Featured</Badge>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <h3 className="text-xl font-bold text-primary">{coffeeOfMonth.name}</h3>
+                    <p className="text-sm text-muted-foreground">{coffeeOfMonth.description}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <Badge variant="outline" className="text-xs">{coffeeOfMonth.origin}</Badge>
+                    </div>
+                  </div>
+                  <Button
+                    className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={onOrderCoffeeOfMonth}
+                  >
+                    <Coffee className="mr-2 h-4 w-4" />
+                    Order Now
+                  </Button>
+                </div>
               </div>
-            </Card>
-          ))}
+            )}
+          </div>
+        </Card>
+
+        {/* Customer Favorites — dynamic ratings */}
+        <div>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Customer Favorites</h2>
+            {dynamicFavorites.some((f) => f.count > 0) && (
+              <Badge variant="outline" className="text-xs text-muted-foreground">
+                Based on customer ratings
+              </Badge>
+            )}
+          </div>
+          <div className="space-y-3">
+            {dynamicFavorites.map((item, idx) => {
+              const isLatte = item.name.toLowerCase() === "latte" || item.name.toLowerCase() === "iced latte"
+              return (
+                <Card
+                  key={item.name}
+                  className="cursor-pointer p-4 transition-colors hover:bg-muted/50"
+                  onClick={() => onOrderFavorite({ name: item.name, price: item.price })}
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {isLatte ? (
+                        <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border-2 border-primary/20">
+                          <Image
+                            src="/images/latte-hero.png"
+                            alt="Latte"
+                            width={48}
+                            height={48}
+                            className="h-full w-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                          <Coffee className="h-5 w-5 text-primary" />
+                        </div>
+                      )}
+                      <div>
+                        <h3 className="font-semibold text-foreground">{item.name}</h3>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-primary">{item.price}</p>
+                          {item.rating !== null ? (
+                            <div className="flex items-center gap-1">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star
+                                  key={s}
+                                  className={`h-3 w-3 ${s <= Math.round(item.rating!)
+                                      ? "fill-accent text-accent"
+                                      : "fill-muted text-muted-foreground/30"
+                                    }`}
+                                />
+                              ))}
+                              <span className="text-xs text-muted-foreground ml-0.5">
+                                {item.rating} ({item.count})
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50 italic">
+                              No ratings yet
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                  </div>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Main Action Buttons */}
+        <div className="space-y-3 pb-6">
+          <Button size="lg" variant="outline" className="w-full bg-transparent" onClick={onViewFullMenu}>
+            View Full Menu
+            <ChevronRight className="ml-2 h-5 w-5" />
+          </Button>
         </div>
       </div>
-
-      {/* Main Action Buttons */}
-      <div className="space-y-3 pb-6">
-        <Button size="lg" variant="outline" className="w-full bg-transparent" onClick={onViewFullMenu}>
-          View Full Menu
-          <ChevronRight className="ml-2 h-5 w-5" />
-        </Button>
-      </div>
-    </div>
     </>
   )
 }

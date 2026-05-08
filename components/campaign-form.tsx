@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
+import { Textarea } from "@/components/ui/textarea"
 import {
   Megaphone,
   Trash2,
@@ -18,6 +19,9 @@ import {
   Square,
   Clock,
   Tag,
+  Sparkles,
+  UploadCloud,
+  AlignLeft,
 } from "lucide-react"
 import { ALL_MENU_ITEMS } from "@/lib/menu-items"
 import type { Campaign } from "@/lib/types"
@@ -28,6 +32,22 @@ interface CampaignFormProps {
   campaigns: Campaign[]
   onCreateCampaign: (campaign: Campaign) => void
   onDeleteCampaign: (campaignId: string) => void
+  /** URL of the promo popup image (the X-closeable banner shown after splash) */
+  splashImageUrl?: string | null
+  onUpdateSplashImage?: (url: string | null) => void
+}
+
+function formatDateRange(c: Campaign): string {
+  if (c.startDate && c.endDate) {
+    const fmt = (d: string) => {
+      const [y, m, day] = d.split("-")
+      return `${day}/${m}/${y}`
+    }
+    const timeRange =
+      c.startTime && c.endTime ? ` · ${c.startTime}–${c.endTime}` : ""
+    return `${fmt(c.startDate)} → ${fmt(c.endDate)}${timeRange}`
+  }
+  return new Date(c.expiresAt).toLocaleString("tr-TR")
 }
 
 function formatTimeLeft(expiresAt: string): string {
@@ -41,16 +61,33 @@ function formatTimeLeft(expiresAt: string): string {
   return `${mins}m left`
 }
 
-export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: CampaignFormProps) {
+export function CampaignForm({
+  campaigns,
+  onCreateCampaign,
+  onDeleteCampaign,
+  splashImageUrl,
+  onUpdateSplashImage,
+}: CampaignFormProps) {
+  // Campaign form state
   const [title, setTitle] = useState("")
-  const [durationHours, setDurationHours] = useState("24")
+  const [details, setDetails] = useState("")
+  const [startDate, setStartDate] = useState("")
+  const [endDate, setEndDate] = useState("")
+  const [startTime, setStartTime] = useState("08:00")
+  const [endTime, setEndTime] = useState("22:00")
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [discountPercent, setDiscountPercent] = useState("20")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
-  const [showOnSplash, setShowOnSplash] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Promo popup image state
+  const [promoPreview, setPromoPreview] = useState<string | null>(splashImageUrl ?? null)
+  const [promoSuccess, setPromoSuccess] = useState(false)
+  const promoFileRef = useRef<HTMLInputElement>(null)
+
+  const today = new Date().toISOString().split("T")[0]
 
   const toggleItem = (id: string) => {
     if (id === "all") {
@@ -69,46 +106,74 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
-      setImagePreview(ev.target?.result as string)
-    }
+    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
     reader.readAsDataURL(file)
+  }
+
+  const handlePromoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const reader = new FileReader()
+    reader.onload = (ev) => setPromoPreview(ev.target?.result as string)
+    reader.readAsDataURL(file)
+  }
+
+  const handleSavePromo = () => {
+    if (onUpdateSplashImage) {
+      onUpdateSplashImage(promoPreview)
+      setPromoSuccess(true)
+      setTimeout(() => setPromoSuccess(false), 3000)
+    }
+  }
+
+  const handleRemovePromo = () => {
+    setPromoPreview(null)
+    if (promoFileRef.current) promoFileRef.current.value = ""
+    if (onUpdateSplashImage) onUpdateSplashImage(null)
   }
 
   const validate = (): boolean => {
     const errs: Record<string, string> = {}
     if (!title.trim()) errs.title = "Campaign title is required."
-    const hrs = parseFloat(durationHours)
-    if (isNaN(hrs) || hrs <= 0) errs.duration = "Enter a valid duration (hours)."
+    if (!startDate) errs.startDate = "Please select a start date."
+    if (!endDate) errs.endDate = "Please select an end date."
+    if (startDate && endDate && endDate < startDate)
+      errs.endDate = "End date must be after start date."
     if (selectedItemIds.length === 0) errs.items = "Select at least one product."
     const pct = parseFloat(discountPercent)
-    if (isNaN(pct) || pct <= 0 || pct > 100) errs.discount = "Enter a discount between 1 and 100."
+    if (isNaN(pct) || pct <= 0 || pct > 100)
+      errs.discount = "Enter a discount between 1 and 100."
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
 
   const handleCreate = () => {
     if (!validate()) return
-    const expiresAt = new Date(Date.now() + parseFloat(durationHours) * 3600 * 1000).toISOString()
+    const expiresAt = new Date(`${endDate}T${endTime || "23:59"}`).toISOString()
     const campaign: Campaign = {
       id: crypto.randomUUID(),
       title: title.trim(),
-      description: `${discountPercent}% off on selected items`,
+      description: details.trim(),
       expiresAt,
+      startDate,
+      endDate,
+      startTime,
+      endTime,
       applicableItemIds: selectedItemIds,
       discountPercent: parseFloat(discountPercent),
       imageUrl: imagePreview ?? undefined,
-      showOnSplash,
       createdAt: new Date().toISOString(),
     }
     onCreateCampaign(campaign)
-    // Reset
     setTitle("")
-    setDurationHours("24")
+    setDetails("")
+    setStartDate("")
+    setEndDate("")
+    setStartTime("08:00")
+    setEndTime("22:00")
     setSelectedItemIds([])
     setDiscountPercent("20")
     setImagePreview(null)
-    setShowOnSplash(false)
     setErrors({})
     setSuccess(true)
     setTimeout(() => setSuccess(false), 3000)
@@ -158,12 +223,10 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
                     <Badge variant="secondary" className="text-xs shrink-0">
                       {c.discountPercent}% off
                     </Badge>
-                    {c.showOnSplash && (
-                      <Badge variant="outline" className="text-xs shrink-0 border-primary/40 text-primary">
-                        On splash
-                      </Badge>
-                    )}
                   </div>
+                  {c.description && (
+                    <p className="text-xs text-muted-foreground italic">{c.description}</p>
+                  )}
                   <p className="text-xs text-muted-foreground">
                     {c.applicableItemIds.includes("all")
                       ? "All items"
@@ -171,6 +234,10 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
                           .map((id) => ALL_MENU_ITEMS.find((m) => m.id === id)?.name ?? id)
                           .join(", ")}
                   </p>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                    <Calendar className="h-3 w-3" />
+                    <span>{formatDateRange(c)}</span>
+                  </div>
                   <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                     <Clock className="h-3 w-3" />
                     <span>{formatTimeLeft(c.expiresAt)}</span>
@@ -190,14 +257,13 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
         </div>
       )}
 
-      {/* Form */}
+      {/* Campaign Form */}
       <Card className="p-6 space-y-6">
         <h2 className="text-base font-semibold text-foreground flex items-center gap-2">
           <Plus className="h-4 w-4" />
           New Campaign
         </h2>
 
-        {/* Success */}
         <AnimatePresence>
           {success && (
             <motion.div
@@ -206,7 +272,7 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
               exit={{ opacity: 0 }}
               className="rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300"
             >
-              Campaign created and sent to customer screen!
+              ✅ Campaign created and sent to customer screen!
             </motion.div>
           )}
         </AnimatePresence>
@@ -220,32 +286,109 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
           <Input
             placeholder="e.g. Summer Special"
             value={title}
-            onChange={(e) => { setTitle(e.target.value); setErrors((p) => ({ ...p, title: "" })) }}
+            onChange={(e) => {
+              setTitle(e.target.value)
+              setErrors((p) => ({ ...p, title: "" }))
+            }}
             className={errors.title ? "border-destructive" : ""}
           />
           {errors.title && <p className="text-xs text-destructive">{errors.title}</p>}
         </div>
 
-        {/* Duration */}
+        {/* Campaign Details */}
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5">
-            <Calendar className="h-3.5 w-3.5" />
-            Campaign Duration (hours) <span className="text-destructive">*</span>
+            <AlignLeft className="h-3.5 w-3.5" />
+            Campaign Details
           </Label>
-          <Input
-            type="number"
-            min="1"
-            placeholder="24"
-            value={durationHours}
-            onChange={(e) => { setDurationHours(e.target.value); setErrors((p) => ({ ...p, duration: "" })) }}
-            className={errors.duration ? "border-destructive" : ""}
+          <Textarea
+            placeholder="Describe the campaign details shown to customers (e.g. 'Every latte is 20% off this weekend!')"
+            value={details}
+            onChange={(e) => setDetails(e.target.value)}
+            rows={3}
+            className="resize-none"
           />
-          {durationHours && !isNaN(parseFloat(durationHours)) && parseFloat(durationHours) > 0 && (
-            <p className="text-xs text-muted-foreground">
-              Expires: {new Date(Date.now() + parseFloat(durationHours) * 3600000).toLocaleString("tr-TR")}
-            </p>
+        </div>
+
+        {/* Date Range */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            Campaign Period <span className="text-destructive">*</span>
+          </Label>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Başlangıç Tarihi (GG/AA/YYYY)</p>
+              <input
+                lang="tr"
+                type="date"
+                min={today}
+                value={startDate}
+                onChange={(e) => {
+                  setStartDate(e.target.value)
+                  setErrors((p) => ({ ...p, startDate: "" }))
+                }}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.startDate ? "border-destructive" : ""}`}
+              />
+              {errors.startDate && (
+                <p className="text-xs text-destructive">{errors.startDate}</p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground">Bitiş Tarihi (GG/AA/YYYY)</p>
+              <input
+                lang="tr"
+                type="date"
+                min={startDate || today}
+                value={endDate}
+                onChange={(e) => {
+                  setEndDate(e.target.value)
+                  setErrors((p) => ({ ...p, endDate: "" }))
+                }}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.endDate ? "border-destructive" : ""}`}
+              />
+              {errors.endDate && (
+                <p className="text-xs text-destructive">{errors.endDate}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Time Range */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Discount Start Time
+              </p>
+              <Input
+                type="time"
+                value={startTime}
+                onChange={(e) => setStartTime(e.target.value)}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <Clock className="h-3 w-3" /> Discount End Time
+              </p>
+              <Input
+                type="time"
+                value={endTime}
+                onChange={(e) => setEndTime(e.target.value)}
+              />
+            </div>
+          </div>
+
+          {/* Period preview */}
+          {startDate && endDate && (
+            <div className="rounded-lg bg-muted/50 border border-border px-3 py-2 text-xs text-muted-foreground">
+              <span className="font-medium text-foreground">Period: </span>
+              {startDate.split("-").reverse().join("/")} {startTime}
+              {" → "}
+              {endDate.split("-").reverse().join("/")} {endTime}
+              <span className="block mt-0.5 text-[10px] opacity-70">
+                Campaign is visible to customers throughout this period; discounts apply only during the selected hours each day.
+              </span>
+            </div>
           )}
-          {errors.duration && <p className="text-xs text-destructive">{errors.duration}</p>}
         </div>
 
         {/* Discount percent */}
@@ -261,7 +404,10 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
               max="100"
               placeholder="20"
               value={discountPercent}
-              onChange={(e) => { setDiscountPercent(e.target.value); setErrors((p) => ({ ...p, discount: "" })) }}
+              onChange={(e) => {
+                setDiscountPercent(e.target.value)
+                setErrors((p) => ({ ...p, discount: "" }))
+              }}
               className={`w-32 ${errors.discount ? "border-destructive" : ""}`}
             />
             <span className="text-sm text-muted-foreground">%</span>
@@ -276,7 +422,6 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
           </Label>
           {errors.items && <p className="text-xs text-destructive">{errors.items}</p>}
 
-          {/* All items toggle */}
           <button
             type="button"
             onClick={() => toggleItem("all")}
@@ -363,7 +508,10 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
               </div>
               <button
                 type="button"
-                onClick={() => { setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = "" }}
+                onClick={() => {
+                  setImagePreview(null)
+                  if (fileInputRef.current) fileInputRef.current.value = ""
+                }}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 hover:bg-background border border-border transition-colors"
               >
                 <X className="h-3.5 w-3.5" />
@@ -382,34 +530,98 @@ export function CampaignForm({ campaigns, onCreateCampaign, onDeleteCampaign }: 
           )}
         </div>
 
-        {/* Show on splash */}
-        <button
-          type="button"
-          onClick={() => setShowOnSplash((v) => !v)}
-          className={`flex w-full items-center gap-3 rounded-xl border px-4 py-3 text-sm transition-colors ${
-            showOnSplash
-              ? "border-primary bg-primary/10 text-primary font-medium"
-              : "border-border text-foreground hover:bg-muted/50"
-          }`}
-        >
-          {showOnSplash ? (
-            <CheckSquare className="h-4 w-4 shrink-0" />
-          ) : (
-            <Square className="h-4 w-4 shrink-0" />
-          )}
-          <div className="text-left">
-            <p className="font-medium">Add image to splash screen</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Show this campaign image as a promo popup when customers open the app
-            </p>
-          </div>
-        </button>
-
         {/* Submit */}
         <Button className="w-full" size="lg" onClick={handleCreate}>
           <Megaphone className="mr-2 h-4 w-4" />
           Create Campaign
         </Button>
+      </Card>
+
+      {/* ── Promo Popup / Opening Banner ── */}
+      <Card className="p-6 space-y-5 border-primary/20">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+            <Sparkles className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-foreground">Promo Popup Banner</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              The promotional image customers see after the app loads
+            </p>
+          </div>
+        </div>
+
+        <AnimatePresence>
+          {promoSuccess && (
+            <motion.div
+              initial={{ opacity: 0, y: -4 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0 }}
+              className="rounded-lg bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 px-4 py-3 text-sm text-green-700 dark:text-green-300"
+            >
+              ✅ Promo banner updated! Customers will see the new image on their next visit.
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <input
+          ref={promoFileRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handlePromoImageChange}
+        />
+
+        {promoPreview ? (
+          <div className="space-y-3">
+            {/* Simulate the popup appearance */}
+            <div className="relative w-full max-w-xs mx-auto">
+              <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl border border-border shadow-lg">
+                <Image src={promoPreview} alt="Promo popup preview" fill className="object-cover" />
+              </div>
+              {/* Fake X button for preview */}
+              <div className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/70 border border-border">
+                <X className="h-4 w-4 text-foreground/60" />
+              </div>
+              <p className="text-center text-xs text-muted-foreground mt-2">Preview (as seen by customers)</p>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex-1"
+                onClick={() => promoFileRef.current?.click()}
+              >
+                <UploadCloud className="mr-1.5 h-3.5 w-3.5" />
+                Change Image
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-destructive border-destructive/40 hover:bg-destructive/10"
+                onClick={handleRemovePromo}
+              >
+                <X className="h-3.5 w-3.5" />
+              </Button>
+            </div>
+            <Button className="w-full" onClick={handleSavePromo}>
+              <Sparkles className="mr-2 h-4 w-4" />
+              Save Promo Banner
+            </Button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => promoFileRef.current?.click()}
+            className="flex w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-primary/30 bg-primary/5 py-10 text-sm text-muted-foreground hover:bg-primary/10 transition-colors"
+          >
+            <UploadCloud className="h-10 w-10 text-primary/40" />
+            <span className="font-medium text-foreground/70">Upload promo popup image</span>
+            <span className="text-xs opacity-60">
+              Replaces the current popup banner · PNG, JPG, WEBP
+            </span>
+          </button>
+        )}
       </Card>
     </div>
   )

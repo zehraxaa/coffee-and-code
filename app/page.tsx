@@ -116,19 +116,24 @@ export default function Home() {
 
       if (order.status === "completed" && prev !== "completed") {
         if (!order.isGuest) {
-          setLoyaltyStamps((s) => {
-            const next = s + 1
-            setTimeout(() => {
-              if (next >= 10) {
-                const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-                setFreeCoffeeCode(code)
-                toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
-              } else {
-                toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
-              }
-            }, 0)
-            return next >= 10 ? 10 : next
-          })
+          // Daha önce bu siparişe stamp verilmişse tekrar verme
+          const stampedKey = `cc_stamped_${order.id}`
+          if (!localStorage.getItem(stampedKey)) {
+            localStorage.setItem(stampedKey, "1")
+            setLoyaltyStamps((s) => {
+              const next = s + 1
+              setTimeout(() => {
+                if (next >= 10) {
+                  const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                  setFreeCoffeeCode(code)
+                  toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
+                } else {
+                  toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
+                }
+              }, 0)
+              return next >= 10 ? 10 : next
+            })
+          }
         }
       }
 
@@ -240,6 +245,7 @@ export default function Home() {
               }}
               onOrderFavorite={(item) => handleMenuItemSelect(item)}
               campaigns={campaigns}
+              orders={orders}
             />
           )}
           {activeTab === "order" && (

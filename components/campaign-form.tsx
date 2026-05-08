@@ -25,12 +25,14 @@ import {
 } from "lucide-react"
 import { ALL_MENU_ITEMS } from "@/lib/menu-items"
 import type { Campaign } from "@/lib/types"
+import { DateInput } from "@/components/ui/date-input"
 import Image from "next/image"
 import { motion, AnimatePresence } from "framer-motion"
 
 interface CampaignFormProps {
   campaigns: Campaign[]
   onCreateCampaign: (campaign: Campaign) => void
+  onUpdateCampaign?: (campaign: Campaign) => void
   onDeleteCampaign: (campaignId: string) => void
   /** URL of the promo popup image (the X-closeable banner shown after splash) */
   splashImageUrl?: string | null
@@ -64,6 +66,7 @@ function formatTimeLeft(expiresAt: string): string {
 export function CampaignForm({
   campaigns,
   onCreateCampaign,
+  onUpdateCampaign,
   onDeleteCampaign,
   splashImageUrl,
   onUpdateSplashImage,
@@ -76,10 +79,11 @@ export function CampaignForm({
   const [startTime, setStartTime] = useState("08:00")
   const [endTime, setEndTime] = useState("22:00")
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
-  const [discountPercent, setDiscountPercent] = useState("20")
+  const [discountPercent, setDiscountPercent] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
+  const [editingId, setEditingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Promo popup image state
@@ -140,9 +144,12 @@ export function CampaignForm({
     if (startDate && endDate && endDate < startDate)
       errs.endDate = "End date must be after start date."
     if (selectedItemIds.length === 0) errs.items = "Select at least one product."
-    const pct = parseFloat(discountPercent)
-    if (isNaN(pct) || pct <= 0 || pct > 100)
-      errs.discount = "Enter a discount between 1 and 100."
+    if (discountPercent.trim() !== "") {
+      const pct = parseFloat(discountPercent)
+      if (isNaN(pct) || pct < 0 || pct > 100) {
+        errs.discount = "Enter a discount between 0 and 100."
+      }
+    }
     setErrors(errs)
     return Object.keys(errs).length === 0
   }
@@ -151,7 +158,7 @@ export function CampaignForm({
     if (!validate()) return
     const expiresAt = new Date(`${endDate}T${endTime || "23:59"}`).toISOString()
     const campaign: Campaign = {
-      id: crypto.randomUUID(),
+      id: editingId || crypto.randomUUID(),
       title: title.trim(),
       description: details.trim(),
       expiresAt,
@@ -160,11 +167,23 @@ export function CampaignForm({
       startTime,
       endTime,
       applicableItemIds: selectedItemIds,
-      discountPercent: parseFloat(discountPercent),
+      discountPercent: discountPercent.trim() === "" ? 0 : parseFloat(discountPercent),
       imageUrl: imagePreview ?? undefined,
-      createdAt: new Date().toISOString(),
+      createdAt: editingId ? (campaigns.find(c => c.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     }
-    onCreateCampaign(campaign)
+
+    if (editingId && onUpdateCampaign) {
+      onUpdateCampaign(campaign)
+    } else {
+      onCreateCampaign(campaign)
+    }
+
+    resetForm()
+    setSuccess(true)
+    setTimeout(() => setSuccess(false), 3000)
+  }
+
+  const resetForm = () => {
     setTitle("")
     setDetails("")
     setStartDate("")
@@ -172,11 +191,26 @@ export function CampaignForm({
     setStartTime("08:00")
     setEndTime("22:00")
     setSelectedItemIds([])
-    setDiscountPercent("20")
+    setDiscountPercent("")
     setImagePreview(null)
     setErrors({})
-    setSuccess(true)
-    setTimeout(() => setSuccess(false), 3000)
+    setEditingId(null)
+    if (fileInputRef.current) fileInputRef.current.value = ""
+  }
+
+  const handleEdit = (c: Campaign) => {
+    setEditingId(c.id)
+    setTitle(c.title)
+    setDetails(c.description)
+    setStartDate(c.startDate || "")
+    setEndDate(c.endDate || "")
+    setStartTime(c.startTime || "08:00")
+    setEndTime(c.endTime || "22:00")
+    setSelectedItemIds(c.applicableItemIds)
+    setDiscountPercent(c.discountPercent === 0 ? "" : c.discountPercent.toString())
+    setImagePreview(c.imageUrl || null)
+    setErrors({})
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
   const activeCampaigns = campaigns.filter((c) => new Date(c.expiresAt) > new Date())
@@ -186,9 +220,9 @@ export function CampaignForm({
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Create Campaign</h1>
+          <h1 className="text-2xl font-bold text-foreground">{editingId ? "Edit Campaign" : "Create Campaign"}</h1>
           <p className="text-sm text-muted-foreground mt-0.5">
-            Create discount campaigns visible on the customer screen
+            {editingId ? "Update existing campaign details" : "Create discount campaigns visible on the customer screen"}
           </p>
         </div>
         <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -220,9 +254,15 @@ export function CampaignForm({
                 <div className="flex-1 min-w-0 space-y-1">
                   <div className="flex items-center gap-2 flex-wrap">
                     <p className="font-semibold text-foreground truncate">{c.title}</p>
-                    <Badge variant="secondary" className="text-xs shrink-0">
-                      {c.discountPercent}% off
-                    </Badge>
+                    {c.discountPercent > 0 ? (
+                      <Badge variant="secondary" className="text-xs shrink-0">
+                        {c.discountPercent}% off
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs shrink-0 border-primary text-primary">
+                        Promotion
+                      </Badge>
+                    )}
                   </div>
                   {c.description && (
                     <p className="text-xs text-muted-foreground italic">{c.description}</p>
@@ -243,14 +283,24 @@ export function CampaignForm({
                     <span>{formatTimeLeft(c.expiresAt)}</span>
                   </div>
                 </div>
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
-                  onClick={() => onDeleteCampaign(c.id)}
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
+                <div className="flex flex-col gap-1">
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
+                    onClick={() => handleEdit(c)}
+                  >
+                    <CheckSquare className="h-4 w-4" /> {/* Use CheckSquare or Edit if available */}
+                  </Button>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    className="shrink-0 h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                    onClick={() => onDeleteCampaign(c.id)}
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
               </motion.div>
             ))}
           </div>
@@ -318,34 +368,28 @@ export function CampaignForm({
           </Label>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Başlangıç Tarihi (GG/AA/YYYY)</p>
-              <input
-                lang="tr"
-                type="date"
-                min={today}
+              <p className="text-xs text-muted-foreground">Start Date (dd/mm/yyyy)</p>
+              <DateInput
                 value={startDate}
-                onChange={(e) => {
-                  setStartDate(e.target.value)
+                onValueChange={(val) => {
+                  setStartDate(val)
                   setErrors((p) => ({ ...p, startDate: "" }))
                 }}
-                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.startDate ? "border-destructive" : ""}`}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pr-10 ${errors.startDate ? "border-destructive" : ""}`}
               />
               {errors.startDate && (
                 <p className="text-xs text-destructive">{errors.startDate}</p>
               )}
             </div>
             <div className="space-y-1.5">
-              <p className="text-xs text-muted-foreground">Bitiş Tarihi (GG/AA/YYYY)</p>
-              <input
-                lang="tr"
-                type="date"
-                min={startDate || today}
+              <p className="text-xs text-muted-foreground">End Date (dd/mm/yyyy)</p>
+              <DateInput
                 value={endDate}
-                onChange={(e) => {
-                  setEndDate(e.target.value)
+                onValueChange={(val) => {
+                  setEndDate(val)
                   setErrors((p) => ({ ...p, endDate: "" }))
                 }}
-                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 ${errors.endDate ? "border-destructive" : ""}`}
+                className={`flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 pr-10 ${errors.endDate ? "border-destructive" : ""}`}
               />
               {errors.endDate && (
                 <p className="text-xs text-destructive">{errors.endDate}</p>
@@ -395,14 +439,14 @@ export function CampaignForm({
         <div className="space-y-2">
           <Label className="flex items-center gap-1.5">
             <Percent className="h-3.5 w-3.5" />
-            Discount Percentage <span className="text-destructive">*</span>
+            Discount Percentage <span className="text-muted-foreground font-normal text-xs">(Optional)</span>
           </Label>
           <div className="flex items-center gap-2">
             <Input
               type="number"
-              min="1"
+              min="0"
               max="100"
-              placeholder="20"
+              placeholder="0"
               value={discountPercent}
               onChange={(e) => {
                 setDiscountPercent(e.target.value)
@@ -531,10 +575,22 @@ export function CampaignForm({
         </div>
 
         {/* Submit */}
-        <Button className="w-full" size="lg" onClick={handleCreate}>
-          <Megaphone className="mr-2 h-4 w-4" />
-          Create Campaign
-        </Button>
+        <div className="flex items-center gap-3">
+          <Button className="flex-1" size="lg" onClick={handleCreate}>
+            <Megaphone className="mr-2 h-4 w-4" />
+            {editingId ? "Update Campaign" : "Create Campaign"}
+          </Button>
+          {editingId && (
+            <Button variant="outline" size="lg" onClick={resetForm}>
+              Cancel
+            </Button>
+          )}
+        </div>
+        {success && (
+          <p className="text-sm text-green-600 dark:text-green-400 font-medium">
+            {editingId ? "Campaign updated successfully!" : "Campaign launched successfully!"}
+          </p>
+        )}
       </Card>
 
       {/* ── Promo Popup / Opening Banner ── */}

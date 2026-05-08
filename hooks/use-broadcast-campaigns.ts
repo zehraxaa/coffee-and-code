@@ -5,6 +5,7 @@ import type { Campaign } from "@/lib/types"
 
 type CampaignMessage =
   | { type: "CAMPAIGN_CREATED"; campaign: Campaign }
+  | { type: "CAMPAIGN_UPDATED"; campaign: Campaign }
   | { type: "CAMPAIGN_DELETED"; campaignId: string }
   | { type: "CAMPAIGNS_SYNC_REQUEST" }
   | { type: "CAMPAIGNS_SYNC_RESPONSE"; campaigns: Campaign[] }
@@ -88,6 +89,13 @@ export function useBroadcastCampaigns() {
             return next
           })
           break
+        case "CAMPAIGN_UPDATED":
+          setCampaigns((prev) => {
+            const next = prev.map((c) => (c.id === msg.campaign.id ? msg.campaign : c))
+            saveToStorage(next)
+            return next
+          })
+          break
         case "CAMPAIGN_DELETED":
           setCampaigns((prev) => {
             const next = prev.filter((c) => c.id !== msg.campaignId)
@@ -131,6 +139,18 @@ export function useBroadcastCampaigns() {
     })
     channelRef.current?.postMessage({
       type: "CAMPAIGN_CREATED",
+      campaign,
+    } as CampaignMessage)
+  }, [])
+
+  const broadcastUpdateCampaign = useCallback((campaign: Campaign) => {
+    setCampaigns((prev) => {
+      const next = prev.map((c) => (c.id === campaign.id ? campaign : c))
+      saveToStorage(next)
+      return next
+    })
+    channelRef.current?.postMessage({
+      type: "CAMPAIGN_UPDATED",
       campaign,
     } as CampaignMessage)
   }, [])
@@ -207,6 +227,7 @@ export function useBroadcastCampaigns() {
     campaigns,
     splashImageUrl,
     broadcastCreateCampaign,
+    broadcastUpdateCampaign,
     broadcastDeleteCampaign,
     broadcastUpdateSplashImage,
     getActiveCampaignForItem,

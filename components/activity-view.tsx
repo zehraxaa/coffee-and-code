@@ -10,6 +10,7 @@ import { motion } from "framer-motion"
 import type { Order } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 import { formatOrderNumber } from "@/lib/order-number"
+import { getCoffeeImage } from "@/lib/coffee-images"
 
 interface ActivityViewProps {
   orders: Order[]
@@ -64,7 +65,7 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
   const pastOrders = orders.filter((order) => order.status === "completed" || order.status === "cancelled")
 
   const renderOrderCard = (order: Order, index: number) => {
-    const isLatte = (order.itemName || "").toLowerCase() === "latte" || (order.itemName || "").toLowerCase() === "iced latte"
+    const coffeeImg = getCoffeeImage(order.itemName || "")
     return (
     <motion.div
       key={order.id}
@@ -82,8 +83,8 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
             >
               {order.status === "ready" ? (
                 <CheckCircle className="h-6 w-6" />
-              ) : isLatte ? (
-                <Image src="/images/latte-hero.png" alt="Latte" width={48} height={48} className="h-full w-full object-cover" />
+              ) : coffeeImg ? (
+                <Image src={coffeeImg} alt={order.itemName || "Coffee"} width={48} height={48} className="h-full w-full object-cover" />
               ) : (
                 <Coffee className="h-6 w-6 text-primary" />
               )}

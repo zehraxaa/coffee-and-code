@@ -9,6 +9,7 @@ import { useEffect, useState, useMemo } from "react"
 import Image from "next/image"
 import type { Campaign, Order, CoffeeOfMonth } from "@/lib/types"
 import { ALL_MENU_ITEMS } from "@/lib/menu-items"
+import { getCoffeeImage } from "@/lib/coffee-images"
 
 const PROMO_STORAGE_KEY = "cc_splash_image"
 const COFFEE_OF_MONTH_KEY = "cc_coffee_of_month"
@@ -361,7 +362,7 @@ export function HomeView({
           </div>
           <div className="space-y-3">
             {dynamicFavorites.map((item, idx) => {
-              const isLatte = item.name.toLowerCase() === "latte" || item.name.toLowerCase() === "iced latte"
+              const coffeeImg = getCoffeeImage(item.name)
               return (
                 <Card
                   key={item.name}
@@ -370,11 +371,11 @@ export function HomeView({
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
-                      {isLatte ? (
+                      {coffeeImg ? (
                         <div className="h-12 w-12 rounded-full overflow-hidden shrink-0 border-2 border-primary/20">
                           <Image
-                            src="/images/latte-hero.png"
-                            alt="Latte"
+                            src={coffeeImg}
+                            alt={item.name}
                             width={48}
                             height={48}
                             className="h-full w-full object-cover"

@@ -34,6 +34,8 @@ import { formatOrderNumber } from "@/lib/order-number"
 import { CampaignForm } from "@/components/campaign-form"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import type { CoffeeOfMonth } from "@/lib/types"
+import { getCoffeeImage } from "@/lib/coffee-images"
+import { DateInput } from "@/components/ui/date-input"
 
 const COFFEE_OF_MONTH_KEY = "cc_coffee_of_month"
 const BARISTA_PIN_KEY = "cc_barista_pin"
@@ -65,7 +67,14 @@ const sidebarItems: SidebarItem[] = [
 
 export default function BaristaPage() {
   const { orders, broadcastUpdateStatus } = useBroadcastOrders()
-  const { campaigns, broadcastCreateCampaign, broadcastDeleteCampaign, splashImageUrl, broadcastUpdateSplashImage } = useBroadcastCampaigns()
+  const {
+    campaigns,
+    splashImageUrl,
+    broadcastCreateCampaign,
+    broadcastUpdateCampaign,
+    broadcastDeleteCampaign,
+    broadcastUpdateSplashImage,
+  } = useBroadcastCampaigns()
   const { toast } = useToast()
   const [activeSection, setActiveSection] = useState("orders")
   const [isAuthenticated, setIsAuthenticated] = useState(false)
@@ -380,6 +389,7 @@ export default function BaristaPage() {
           <CampaignForm
             campaigns={campaigns}
             onCreateCampaign={broadcastCreateCampaign}
+            onUpdateCampaign={broadcastUpdateCampaign}
             onDeleteCampaign={broadcastDeleteCampaign}
             splashImageUrl={splashImageUrl}
             onUpdateSplashImage={broadcastUpdateSplashImage}
@@ -516,23 +526,19 @@ export default function BaristaPage() {
                   <p className="text-sm font-medium text-foreground flex items-center gap-2"><CalendarDays className="h-4 w-4" /> Date Range</p>
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Başlangıç Tarihi (GG/AA/YYYY)</p>
-                      <input
-                        lang="tr"
-                        type="date"
+                      <p className="text-xs text-muted-foreground">Start Date (dd/mm/yyyy)</p>
+                      <DateInput
                         value={orderFilterStart}
-                        onChange={(e) => setOrderFilterStart(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        onValueChange={(val) => setOrderFilterStart(val)}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pr-8"
                       />
                     </div>
                     <div className="space-y-1">
-                      <p className="text-xs text-muted-foreground">Bitiş Tarihi (GG/AA/YYYY)</p>
-                      <input
-                        lang="tr"
-                        type="date"
+                      <p className="text-xs text-muted-foreground">End Date (dd/mm/yyyy)</p>
+                      <DateInput
                         value={orderFilterEnd}
-                        onChange={(e) => setOrderFilterEnd(e.target.value)}
-                        className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                        onValueChange={(val) => setOrderFilterEnd(val)}
+                        className="flex h-9 w-full rounded-md border border-input bg-background px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary pr-8"
                       />
                     </div>
                   </div>
@@ -591,7 +597,7 @@ export default function BaristaPage() {
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {categories.map(([name, catOrds]) => {
-                      const isLatte = name.toLowerCase() === "latte" || name.toLowerCase() === "iced latte"
+                      const coffeeImg = getCoffeeImage(name)
                       return (
                       <button
                         key={name}
@@ -599,9 +605,9 @@ export default function BaristaPage() {
                         className="rounded-xl border border-border bg-card p-5 text-left hover:bg-muted/50 hover:border-primary/40 transition-colors group"
                       >
                         <div className="flex items-center justify-between mb-3">
-                          {isLatte ? (
+                          {coffeeImg ? (
                             <div className="h-10 w-10 rounded-full overflow-hidden border-2 border-primary/20">
-                              <Image src="/images/latte-hero.png" alt="Latte" width={40} height={40} className="h-full w-full object-cover" />
+                              <Image src={coffeeImg} alt={name} width={40} height={40} className="h-full w-full object-cover" />
                             </div>
                           ) : (
                             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
@@ -816,7 +822,7 @@ export default function BaristaPage() {
                 </label>
                 <Input
                   type="email"
-                  placeholder="Admin e-posta adresi"
+                  placeholder="mail address"
                   value={acAdminEmail}
                   onChange={(e) => { setAcAdminEmail(e.target.value); setAcError("") }}
                 />
@@ -828,7 +834,7 @@ export default function BaristaPage() {
                 </label>
                 <Input
                   type="password"
-                  placeholder="Güvenlik kodu"
+                  placeholder="code"
                   value={acSecurityCode}
                   onChange={(e) => { setAcSecurityCode(e.target.value); setAcError("") }}
                 />

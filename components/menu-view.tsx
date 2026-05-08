@@ -8,26 +8,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Coffee, ArrowLeft } from "lucide-react"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import { HOT_MENU_ITEMS, ICED_MENU_ITEMS, type MenuItem } from "@/lib/menu-items"
+import { COFFEE_IMAGES } from "@/lib/coffee-images"
 
-// ─────────────────────────────────────────────────────────────────
-// 📸 Her kahvenin kendi fotoğrafını buraya ekle:
-//    key  → menu-items.ts'deki item.id değeri
-//    value → /public/images/ altındaki dosya yolu
-// Fotoğrafı olmayan kahveler otomatik olarak ikon gösterir.
-// ─────────────────────────────────────────────────────────────────
-const COFFEE_IMAGES: Record<string, string> = {
-  "latte":              "/images/latte-hero.png",
-  "spanish-latte":   "/images/spanish-latte.png",
-  "americano":       "/images/americano.jpeg",
-  "cappuccino":      "/images/cappuccino.jpg",
-  "mocha":           "/images/mocha.png",
-  "espresso":        "/images/espresso.jpg",
-  "iced-latte":      "/images/iced-latte.jpg",
-  "iced-spanish-latte": "/images/iced-spanish-latte.jpg",
-  "iced-americano":  "/images/Iced-Americano.jpg",
-  "cold-brew":       "/images/cold-brew.png",
-  "iced-mocha":      "/images/iced-mocha.jpg",
-}
 
 interface MenuViewProps {
   onBack: () => void

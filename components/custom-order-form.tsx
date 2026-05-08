@@ -9,6 +9,7 @@ import { ArrowLeft, Coffee, Star, X } from "lucide-react"
 import type { Order } from "@/lib/types"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import { getMenuItemIdByName } from "@/lib/menu-items"
+import { getCoffeeImage } from "@/lib/coffee-images"
 
 // Süt ve syrup gerektirmeyen içecekler
 const NO_MILK_ITEMS = ["americano", "espresso", "Americano", "Espresso", "Iced Americano"]
@@ -234,18 +235,18 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     onBack()
   }
 
-  const isLatte = preselectedItem?.name?.toLowerCase() === "latte" || preselectedItem?.name?.toLowerCase() === "iced latte"
+  const coffeeImg = preselectedItem ? getCoffeeImage(preselectedItem.name) : undefined
 
   return (
     <>
-      <div className={isLatte ? "relative" : "space-y-6"}>
-        {isLatte ? (
+      <div className={coffeeImg ? "relative" : "space-y-6"}>
+        {coffeeImg ? (
           <>
             {/* Hero image — flush top, fades out at bottom */}
             <div className="relative w-full h-72 -mx-0 overflow-hidden">
               <Image
-                src="/images/latte-hero.png"
-                alt="Latte"
+                src={coffeeImg}
+                alt={preselectedItem?.name || "Coffee"}
                 fill
                 className="object-cover object-center"
                 priority

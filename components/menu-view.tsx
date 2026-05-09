@@ -14,9 +14,11 @@ import { COFFEE_IMAGES } from "@/lib/coffee-images"
 interface MenuViewProps {
   onBack: () => void
   onSelectItem: (item: { name: string; price: string }) => void
+  selectedCategory?: string
+  onCategoryChange?: (category: string) => void
 }
 
-export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
+export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCategoryChange }: MenuViewProps) {
   const { applyDiscount } = useBroadcastCampaigns()
 
   const hotMenuItems: MenuItem[] = HOT_MENU_ITEMS.map((item) => {
@@ -115,7 +117,7 @@ export function MenuView({ onBack, onSelectItem }: MenuViewProps) {
       </div>
 
       {/* Menu Items */}
-      <Tabs defaultValue="hot" className="w-full">
+      <Tabs value={selectedCategory} onValueChange={(val) => onCategoryChange?.(val)} className="w-full">
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="hot">Hot Drinks</TabsTrigger>
           <TabsTrigger value="iced">Ice Drinks</TabsTrigger>

@@ -12,7 +12,7 @@ import { getMenuItemIdByName } from "@/lib/menu-items"
 import { getCoffeeImage } from "@/lib/coffee-images"
 
 // Süt ve syrup gerektirmeyen içecekler
-const NO_MILK_ITEMS = ["americano", "espresso", "Americano", "Espresso", "Iced Americano"]
+const NO_MILK_ITEMS = ["americano", "espresso", "Americano", "Espresso", "Iced Americano", "Cold Brew"]
 const MOCHA_ITEMS = ["mocha", "Mocha", "Iced Mocha"]
 
 function isNoMilkItem(name?: string) {
@@ -44,9 +44,10 @@ interface OrderConfirmPopupProps {
   hasCampaignDiscount?: boolean
   onConfirm: () => void
   onCancel: () => void
+  note?: string
 }
 
-function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: OrderConfirmPopupProps) {
+function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note }: OrderConfirmPopupProps) {
   const sugarLabel = (v: number) => {
     if (v === 0) return "No Sugar"
     if (v === 1) return "Very Light"
@@ -123,6 +124,14 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel }: Orde
               </div>
             )}
           </div>
+
+          {/* Note */}
+          {note && (
+            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <p className="text-xs text-muted-foreground mb-1">📝 Note</p>
+              <p className="text-sm font-medium text-foreground">{note}</p>
+            </div>
+          )}
 
           {/* Price */}
           <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
@@ -232,7 +241,6 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
   const handleCancel = () => {
     setShowConfirm(false)
-    onBack()
   }
 
   const coffeeImg = preselectedItem ? getCoffeeImage(preselectedItem.name) : undefined
@@ -495,8 +503,15 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                     <span className="text-xs text-muted-foreground">({itemReviews.length})</span>
                   </div>
                 </div>
-                {itemReviews.map((o) => (
-                  <Card key={o.id} className="p-4 space-y-2">
+                {itemReviews.map((o) => {
+                  const sugarLabel = (v: number) => {
+                    if (v === 0) return "No Sugar"
+                    if (v <= 2) return `Sugar ${v}/5`
+                    if (v === 3) return "Medium Sweet"
+                    return `Sweet ${v}/5`
+                  }
+                  return (
+                  <Card key={o.id} className="p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">{o.reviewerName || "Anonymous"}</span>
                       <div className="flex gap-0.5">
@@ -505,9 +520,37 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                         ))}
                       </div>
                     </div>
+                    {/* Order customization details */}
+                    <div className="flex flex-wrap gap-1.5">
+                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary capitalize">
+                        {o.coffeeStrength}
+                      </span>
+                      <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
+                        {o.shot} shot
+                      </span>
+                      <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                        {sugarLabel(o.sugarLevel)}
+                      </span>
+                      {o.milkType && !isNoMilkItem(o.itemName) && (
+                        <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400 capitalize">
+                          {o.milkType} milk
+                        </span>
+                      )}
+                      {o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
+                        <span key={s} className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:text-purple-400">
+                          {s}
+                        </span>
+                      ))}
+                      {o.chocolateType && (
+                        <span className="inline-flex items-center rounded-md bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-400 capitalize">
+                          {o.chocolateType} chocolate
+                        </span>
+                      )}
+                    </div>
                     {o.review && <p className="text-sm text-muted-foreground">&ldquo;{o.review}&rdquo;</p>}
                   </Card>
-                ))}
+                  )
+                })}
               </div>
             )
           })()}
@@ -516,7 +559,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
       {/* Confirmation Popup */}
       {showConfirm && (
-        <OrderConfirmPopup order={buildOrder()} itemName={preselectedItem?.name || "Custom Coffee"} price={calculatePrice()} onConfirm={handleConfirm} onCancel={handleCancel} />
+        <OrderConfirmPopup order={buildOrder()} itemName={preselectedItem?.name || "Custom Coffee"} price={calculatePrice()} onConfirm={handleConfirm} onCancel={handleCancel} note={note.trim() || undefined} />
       )}
     </>
   )

@@ -45,6 +45,7 @@ export default function Home() {
   const [pendingOrder, setPendingOrder] = useState<Omit<Order, "id" | "timestamp"> | null>(null)
   const [showLoyaltyPrompt, setShowLoyaltyPrompt] = useState(false)
   const [freeCoffeeCode, setFreeCoffeeCode] = useState<string | null>(null)
+  const [menuCategory, setMenuCategory] = useState("hot")
   const { toast } = useToast()
 
   useEffect(() => {
@@ -256,7 +257,7 @@ export default function Home() {
               orders={orders}
             />
           )}
-          {activeTab === "menu" && <MenuView onBack={() => setActiveTab("home")} onSelectItem={handleMenuItemSelect} />}
+          {activeTab === "menu" && <MenuView onBack={() => setActiveTab("home")} onSelectItem={handleMenuItemSelect} selectedCategory={menuCategory} onCategoryChange={setMenuCategory} />}
           {activeTab === "stores" && <StoresView />}
           {activeTab === "activity" && <ActivityView orders={orders} onRateOrder={handleRateOrder} />}
           {activeTab === "account" && (

@@ -181,14 +181,14 @@ export function HomeView({
             </div>
             <Sparkles className="h-8 w-8 text-primary-foreground" />
           </div>
-          <div className="mt-4 flex gap-2">
+          <div className="mt-4 flex flex-wrap justify-center gap-1.5">
             {Array.from({ length: totalStamps }).map((_, i) => (
               <div
                 key={i}
-                className={`h-8 w-8 rounded-full border-2 border-primary-foreground ${i < loyaltyStamps ? "bg-primary-foreground" : "bg-primary-foreground/20"
+                className={`h-7 w-7 shrink-0 rounded-full border-2 border-primary-foreground flex items-center justify-center ${i < loyaltyStamps ? "bg-primary-foreground" : "bg-primary-foreground/20"
                   }`}
               >
-                {i < loyaltyStamps && <Coffee className="h-full w-full p-1 text-primary" />}
+                {i < loyaltyStamps && <Coffee className="h-4 w-4 text-primary" />}
               </div>
             ))}
           </div>

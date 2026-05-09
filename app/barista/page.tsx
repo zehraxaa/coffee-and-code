@@ -62,7 +62,6 @@ const sidebarItems: SidebarItem[] = [
   { id: "campaign", label: "Create Campaign", icon: Megaphone },
   { id: "coffeemonth", label: "Coffee of the Month", icon: Coffee },
   { id: "account", label: "Barista Account", icon: UserCog },
-  { id: "surveys", label: "Customer Ratings", icon: ClipboardList },
 ]
 
 export default function BaristaPage() {
@@ -444,17 +443,56 @@ export default function BaristaPage() {
                           </div>
                           <span className="text-sm font-bold text-foreground">{g.avg}</span>
                         </div>
-                        <div className="space-y-1 max-h-40 overflow-y-auto">
-                          {g.orders.map((o) => (
-                            <div key={o.id} className="flex items-center justify-between text-xs py-1 border-t border-border/50">
-                              <span className="text-muted-foreground">{o.reviewerName || "Anonymous"}</span>
-                              <div className="flex gap-0.5">
-                                {Array.from({ length: 5 }).map((_, i) => (
-                                  <Star key={i} className={`h-3 w-3 ${i < (o.rating || 0) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`} />
-                                ))}
+                        <div className="space-y-2 max-h-72 overflow-y-auto">
+                          {g.orders.map((o) => {
+                            const sugarLabel = (v: number) => {
+                              if (v === 0) return "No Sugar"
+                              if (v <= 2) return `Sugar ${v}/5`
+                              if (v === 3) return "Medium Sweet"
+                              return `Sweet ${v}/5`
+                            }
+                            const noMilk = ["americano", "espresso", "iced americano", "cold brew"].some(
+                              (n) => (o.itemName || "").toLowerCase().includes(n)
+                            )
+                            return (
+                              <div key={o.id} className="border-t border-border/50 pt-2 space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="text-xs font-medium text-foreground">{o.reviewerName || "Anonymous"}</span>
+                                  <div className="flex gap-0.5">
+                                    {Array.from({ length: 5 }).map((_, i) => (
+                                      <Star key={i} className={`h-3 w-3 ${i < (o.rating || 0) ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`} />
+                                    ))}
+                                  </div>
+                                </div>
+                                <div className="flex flex-wrap gap-1">
+                                  <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary capitalize">
+                                    {o.coffeeStrength}
+                                  </span>
+                                  <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                                    {o.shot} shot
+                                  </span>
+                                  <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                    {sugarLabel(o.sugarLevel)}
+                                  </span>
+                                  {o.milkType && !noMilk && (
+                                    <span className="inline-flex items-center rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400 capitalize">
+                                      {o.milkType} milk
+                                    </span>
+                                  )}
+                                  {o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
+                                    <span key={s} className="inline-flex items-center rounded-md bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400">
+                                      {s}
+                                    </span>
+                                  ))}
+                                  {o.chocolateType && (
+                                    <span className="inline-flex items-center rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:text-orange-400 capitalize">
+                                      {o.chocolateType} choc.
+                                    </span>
+                                  )}
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            )
+                          })}
                         </div>
                       </div>
                     ))}
@@ -503,6 +541,22 @@ export default function BaristaPage() {
                         <div><span className="text-muted-foreground">Cup:</span> <span className="capitalize">{o.cupType}</span></div>
                         <div><span className="text-muted-foreground">Shot:</span> <span className="capitalize">{o.shot}</span></div>
                         {o.price && <div className="col-span-2"><span className="text-muted-foreground">Price:</span> {o.price}</div>}
+                        <div className="col-span-2 flex items-center gap-2">
+                          {o.rating ? (
+                            <>
+                              <span className="text-muted-foreground">Rating:</span>
+                              <div className="flex items-center gap-1">
+                                {Array.from({ length: 5 }).map((_, i) => (
+                                  <Star key={i} className={`h-3.5 w-3.5 ${i < o.rating! ? "fill-amber-400 text-amber-400" : "fill-muted text-muted"}`} />
+                                ))}
+                                <span className="text-xs font-semibold text-amber-600 dark:text-amber-400">{o.rating}/5</span>
+                                {o.reviewerName && <span className="text-xs text-muted-foreground">· {o.reviewerName}</span>}
+                              </div>
+                            </>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/50 italic">Not rated yet</span>
+                          )}
+                        </div>
                         <div className="col-span-2 text-xs text-muted-foreground">{new Date(o.timestamp).toLocaleString("tr-TR")}</div>
                       </div>
                     ))}

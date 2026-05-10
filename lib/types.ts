@@ -41,10 +41,10 @@ export interface Order {
   timestamp: Date
   orderNumber?: number
   itemName?: string
-  coffeeStrength: "smooth" | "balanced" | "strong"
+  coffeeStrength: "smooth" | "balanced" | "strong" | "light" | "dark"
   sugarLevel: number
   shot: "single" | "double"
-  milkType: "whole" | "lactose-free" | "oat"
+  milkType?: "whole" | "lactose-free" | "oat"
   cupType: "paper" | "plastic" | "glass" | "porcelain"
   cupSize: "small" | "medium" | "large"
   syrups: string[]

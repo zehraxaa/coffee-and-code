@@ -1,130 +1,209 @@
 "use client"
 
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useState, useEffect, useCallback, useRef } from "react"
 import type { Order, OrderStatus } from "@/lib/types"
-
-type BroadcastMessage =
-  | { type: "ORDER_PLACED"; order: Order }
-  | { type: "ORDER_STATUS_UPDATED"; orderId: string; status: OrderStatus }
-  | { type: "ORDER_RATED"; orderId: string; rating: number; review: string; reviewerName?: string }
-  | { type: "ORDER_REVIEW_DELETED"; orderId: string }
-  | { type: "SYNC_REQUEST" }
-  | { type: "SYNC_RESPONSE"; orders: Order[] }
-
-const CHANNEL_NAME = "coffee_and_code_orders"
+import { supabase } from "@/lib/supabase"
 
 export function useBroadcastOrders() {
   const [orders, setOrders] = useState<Order[]>([])
-  const channelRef = useRef<BroadcastChannel | null>(null)
-  const ordersRef = useRef<Order[]>([])
-
-  // ordersRef'i güncel tut — SYNC_RESPONSE için
-  useEffect(() => {
-    ordersRef.current = orders
-  }, [orders])
+  const isBaristaOnlineRef = useRef(false)
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-
-    const channel = new BroadcastChannel(CHANNEL_NAME)
-    channelRef.current = channel
-
-    channel.onmessage = (event: MessageEvent<BroadcastMessage>) => {
-      const msg = event.data
-
-      switch (msg.type) {
-        case "ORDER_PLACED":
-          setOrders((prev) => {
-            if (prev.find((o) => o.id === msg.order.id)) return prev
-            return [msg.order, ...prev]
-          })
-          break
-
-        case "ORDER_STATUS_UPDATED":
-          setOrders((prev) =>
-            prev.map((o) => (o.id === msg.orderId ? { ...o, status: msg.status } : o))
-          )
-          break
-
-        case "ORDER_RATED":
-          setOrders((prev) =>
-            prev.map((o) =>
-              o.id === msg.orderId ? { ...o, rating: msg.rating, review: msg.review, reviewerName: msg.reviewerName } : o
-            )
-          )
-          break
-
-        case "ORDER_REVIEW_DELETED":
-          setOrders((prev) =>
-            prev.map((o) =>
-              o.id === msg.orderId ? { ...o, rating: undefined, review: undefined, reviewerName: undefined } : o
-            )
-          )
-          break
-
-        case "SYNC_REQUEST":
-          // Mevcut state'i yeni açılan sekmeye gönder
-          channel.postMessage({
-            type: "SYNC_RESPONSE",
-            orders: ordersRef.current,
-          } as BroadcastMessage)
-          break
-
-        case "SYNC_RESPONSE":
-          // Sadece boşsak al (ilk açılış)
-          setOrders((prev) => (prev.length > 0 ? prev : msg.orders))
-          break
+    // 1. İlk açılışta mevcut siparişleri Supabase'den çek
+    const fetchOrders = async () => {
+      const { data, error } = await supabase
+        .from('orders')
+        .select('*')
+        .order('created_at', { ascending: false })
+      
+      if (!error && data) {
+        const mappedOrders: Order[] = data.map(o => ({
+          id: o.id,
+          timestamp: new Date(o.created_at),
+          orderNumber: o.order_number,
+          itemName: o.item_name,
+          coffeeStrength: o.coffee_strength as Order["coffeeStrength"],
+          sugarLevel: o.sugar_level,
+          shot: o.shot as "single" | "double",
+          milkType: o.milk_type as "whole" | "lactose-free" | "oat" | undefined,
+          cupType: o.cup_type as "paper" | "plastic" | "glass" | "porcelain",
+          cupSize: o.cup_size as "small" | "medium" | "large",
+          syrups: o.syrups || [],
+          chocolateType: o.chocolate_type as "white" | "milk" | "dark" | undefined,
+          isGuest: o.is_guest,
+          status: o.status as OrderStatus,
+          rating: o.rating || undefined,
+          review: o.review || undefined,
+          reviewerName: o.reviewer_name || undefined,
+          price: o.price,
+          note: o.note || undefined,
+        }))
+        setOrders(mappedOrders)
+      } else if (error) {
+        console.error("Error fetching initial orders:", error)
       }
     }
+    
+    fetchOrders()
 
-    // Açılışta mevcut sekmelerden veri iste
-    channel.postMessage({ type: "SYNC_REQUEST" } as BroadcastMessage)
+    // 2. Realtime değişiklikleri (diğer cihazlardan gelen) dinle
+    const channelId = crypto.randomUUID()
+    const channel = supabase.channel(`schema-db-changes-${channelId}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'orders' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const o = payload.new
+            const newOrder: Order = {
+              id: o.id,
+              timestamp: new Date(o.created_at),
+              orderNumber: o.order_number,
+              itemName: o.item_name,
+              coffeeStrength: o.coffee_strength,
+              sugarLevel: o.sugar_level,
+              shot: o.shot,
+              milkType: o.milk_type || undefined,
+              cupType: o.cup_type,
+              cupSize: o.cup_size,
+              syrups: o.syrups || [],
+              chocolateType: o.chocolate_type || undefined,
+              isGuest: o.is_guest,
+              status: o.status,
+              rating: o.rating || undefined,
+              review: o.review || undefined,
+              reviewerName: o.reviewer_name || undefined,
+              price: o.price,
+              note: o.note || undefined,
+            }
+            setOrders(prev => {
+              // Kendimiz eklediysek (optimistic update) zaten vardır, atla
+              if (prev.find(item => item.id === newOrder.id)) return prev;
+              return [newOrder, ...prev]
+            })
+          } else if (payload.eventType === 'UPDATE') {
+            const o = payload.new
+            setOrders(prev => prev.map(item => {
+              if (item.id === o.id) {
+                return {
+                  ...item,
+                  status: o.status,
+                  rating: o.rating || undefined,
+                  review: o.review || undefined,
+                  reviewerName: o.reviewer_name || undefined,
+                }
+              }
+              return item
+            }))
+          } else if (payload.eventType === 'DELETE') {
+             setOrders(prev => prev.filter(item => item.id !== payload.old.id))
+          }
+        }
+      )
+      .subscribe()
+
+    // 3. Barista çevrimiçi durumunu dinle
+    const presenceChannelName = 'barista_presence'
+    const existingPresence = supabase.getChannels().find(c => c.topic === `realtime:${presenceChannelName}`)
+    if (existingPresence) {
+      supabase.removeChannel(existingPresence)
+    }
+
+    const presenceChannel = supabase.channel(presenceChannelName)
+    presenceChannel
+      .on('presence', { event: 'sync' }, () => {
+        const state = presenceChannel.presenceState()
+        isBaristaOnlineRef.current = Object.keys(state).length > 0
+      })
+      .subscribe()
 
     return () => {
-      channel.close()
+      supabase.removeChannel(channel)
+      supabase.removeChannel(presenceChannel)
     }
   }, [])
 
-  const broadcastPlaceOrder = useCallback((order: Order) => {
+  const broadcastPlaceOrder = useCallback(async (order: Order) => {
+    // Optimistic UI update: Anında arayüzde göster
     setOrders((prev) => {
       if (prev.find((o) => o.id === order.id)) return prev
       return [order, ...prev]
     })
-    channelRef.current?.postMessage({ type: "ORDER_PLACED", order } as BroadcastMessage)
+    
+    // Supabase'e kaydet
+    const { error } = await supabase.from('orders').insert({
+      id: order.id,
+      order_number: order.orderNumber,
+      item_name: order.itemName,
+      coffee_strength: order.coffeeStrength,
+      sugar_level: order.sugarLevel,
+      shot: order.shot,
+      milk_type: order.milkType || null,
+      cup_type: order.cupType,
+      cup_size: order.cupSize,
+      syrups: order.syrups,
+      chocolate_type: order.chocolateType || null,
+      is_guest: order.isGuest || false,
+      status: order.status,
+      price: order.price,
+      note: order.note || null,
+    })
+
+    if (error) {
+      console.error("Error inserting order:", error)
+    } else {
+      if (!isBaristaOnlineRef.current) {
+        fetch('/api/notify-barista', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order })
+        }).catch(err => console.error("Error sending email notification:", err))
+      }
+    }
   }, [])
 
-  const broadcastUpdateStatus = useCallback((orderId: string, status: OrderStatus) => {
+  const broadcastUpdateStatus = useCallback(async (orderId: string, status: OrderStatus) => {
+    // Optimistic update
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, status } : o))
     )
-    channelRef.current?.postMessage({
-      type: "ORDER_STATUS_UPDATED",
-      orderId,
-      status,
-    } as BroadcastMessage)
+    
+    const { error } = await supabase.from('orders').update({ status }).eq('id', orderId)
+    if (error) {
+      console.error("Error updating order status:", error)
+    }
   }, [])
 
-  const broadcastRateOrder = useCallback((orderId: string, rating: number, review: string, reviewerName?: string) => {
+  const broadcastRateOrder = useCallback(async (orderId: string, rating: number, review: string, reviewerName?: string) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, rating, review, reviewerName } : o))
     )
-    channelRef.current?.postMessage({
-      type: "ORDER_RATED",
-      orderId,
-      rating,
-      review,
-      reviewerName,
-    } as BroadcastMessage)
+    
+    const { error } = await supabase.from('orders').update({ 
+      rating, 
+      review: review || null, 
+      reviewer_name: reviewerName || null 
+    }).eq('id', orderId)
+    
+    if (error) {
+      console.error("Error rating order:", error)
+    }
   }, [])
 
-  const broadcastDeleteReview = useCallback((orderId: string) => {
+  const broadcastDeleteReview = useCallback(async (orderId: string) => {
     setOrders((prev) =>
       prev.map((o) => (o.id === orderId ? { ...o, rating: undefined, review: undefined, reviewerName: undefined } : o))
     )
-    channelRef.current?.postMessage({
-      type: "ORDER_REVIEW_DELETED",
-      orderId,
-    } as BroadcastMessage)
+    
+    const { error } = await supabase.from('orders').update({ 
+      rating: null, 
+      review: null, 
+      reviewer_name: null 
+    }).eq('id', orderId)
+    
+    if (error) {
+      console.error("Error deleting review:", error)
+    }
   }, [])
 
   return { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder, broadcastDeleteReview }

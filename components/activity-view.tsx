@@ -15,9 +15,12 @@ import { getCoffeeImage } from "@/lib/coffee-images"
 interface ActivityViewProps {
   orders: Order[]
   onRateOrder: (orderId: string) => void
+  onReorder?: (order: Order) => void
 }
 
-export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
+export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewProps) {
+  const isTeaOrder = (order: Order) => (order.itemName || "").toLowerCase() === "tea"
+
   const getStatusColor = (status: Order["status"]) => {
     switch (status) {
       case "received":
@@ -104,11 +107,13 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                 {formatDistanceToNow(order.timestamp, { addSuffix: true })}
               </p>
               <div className="mt-3 space-y-1 text-sm">
+                {!isTeaOrder(order) && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Shot:</span> {order.shot}
+                  </p>
+                )}
                 <p className="text-muted-foreground">
-                  <span className="font-medium text-foreground">Shot:</span> {order.shot}
-                </p>
-                <p className="text-muted-foreground">
-                  <span className="font-medium text-foreground">Strength:</span>{" "}
+                  <span className="font-medium text-foreground">{isTeaOrder(order) ? "Brew Ratio:" : "Strength:"}</span>{" "}
                   <span className="capitalize">{order.coffeeStrength}</span>
                 </p>
                 <p className="text-muted-foreground">
@@ -117,12 +122,12 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                 <p className="text-muted-foreground">
                   <span className="font-medium text-foreground">Cup:</span> {order.cupType}
                 </p>
-                {order.milkType && !(["americano", "espresso", "iced americano"].some(n => (order.itemName || "").toLowerCase().includes(n))) && (
+                {order.milkType && !isTeaOrder(order) && !(["americano", "espresso", "iced americano"].some(n => (order.itemName || "").toLowerCase().includes(n))) && (
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Milk:</span> {order.milkType}
                   </p>
                 )}
-                {order.chocolateType && (
+                {order.chocolateType && !isTeaOrder(order) && (
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Chocolate:</span> {order.chocolateType}
                   </p>
@@ -132,7 +137,12 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
                     <span className="font-medium text-foreground">Price:</span> {order.price}
                   </p>
                 )}
-                {order.syrups.length > 0 && (
+                {isTeaOrder(order) && order.syrups.length > 0 && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Aroma:</span> {order.syrups[0]}
+                  </p>
+                )}
+                {!isTeaOrder(order) && order.syrups.length > 0 && (
                   <p className="text-muted-foreground">
                     <span className="font-medium text-foreground">Syrups:</span> {order.syrups.join(", ")}
                   </p>
@@ -200,6 +210,16 @@ export function ActivityView({ orders, onRateOrder }: ActivityViewProps) {
             onClick={() => onRateOrder(order.id)}
           >
             Rate Order
+          </Button>
+        )}
+
+        {/* Re-order Button */}
+        {order.status === "completed" && onReorder && (
+          <Button
+            className="mt-2 w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            onClick={() => onReorder(order)}
+          >
+            Re-order
           </Button>
         )}
 

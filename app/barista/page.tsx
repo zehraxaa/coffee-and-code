@@ -6,6 +6,7 @@ import { BaristaDashboard } from "@/components/barista-dashboard"
 import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
 import { useToast } from "@/hooks/use-toast"
 import type { OrderStatus } from "@/lib/types"
+import { supabase } from "@/lib/supabase"
 import {
   Users,
   ShoppingBag,
@@ -143,6 +144,32 @@ export default function BaristaPage() {
     }
   }, [isAuthenticated])
 
+  useEffect(() => {
+    if (!isAuthenticated) return
+
+    const channelName = 'barista_presence'
+    const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`)
+    if (existingChannel) {
+      supabase.removeChannel(existingChannel)
+    }
+
+    const channel = supabase.channel(channelName, {
+      config: { presence: { key: 'barista' } }
+    })
+
+    channel
+      .on('presence', { event: 'sync' }, () => {})
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          await channel.track({ online_at: new Date().toISOString() })
+        }
+      })
+
+    return () => {
+      supabase.removeChannel(channel)
+    }
+  }, [isAuthenticated])
+
   const handleLogin = () => {
     if (codeInput === getBaristaPin()) {
       setIsAuthenticated(true)
@@ -231,16 +258,19 @@ export default function BaristaPage() {
       }
     }
 
-    const channel = new BroadcastChannel("coffee_and_code_orders")
-
-    channel.onmessage = (event) => {
-      if (event.data.type === "ORDER_PLACED") {
-        playSound()
-      }
-    }
+    const channelId = crypto.randomUUID()
+    const realtimeChannel = supabase.channel(`audio-notification-${channelId}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        () => {
+          playSound()
+        }
+      )
+      .subscribe()
 
     return () => {
-      channel.close()
+      supabase.removeChannel(realtimeChannel)
       window.removeEventListener("pointerdown", unlockAudio)
       window.removeEventListener("keydown", unlockAudio)
       audioCtx?.close()
@@ -454,6 +484,7 @@ export default function BaristaPage() {
                             const noMilk = ["americano", "espresso", "iced americano", "cold brew"].some(
                               (n) => (o.itemName || "").toLowerCase().includes(n)
                             )
+                            const isTea = (o.itemName || "").toLowerCase() === "tea"
                             return (
                               <div key={o.id} className="border-t border-border/50 pt-2 space-y-1.5">
                                 <div className="flex items-center justify-between">
@@ -466,25 +497,32 @@ export default function BaristaPage() {
                                 </div>
                                 <div className="flex flex-wrap gap-1">
                                   <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary capitalize">
-                                    {o.coffeeStrength}
+                                    {isTea ? `${o.coffeeStrength} brew` : o.coffeeStrength}
                                   </span>
-                                  <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
-                                    {o.shot} shot
-                                  </span>
+                                  {!isTea && (
+                                    <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
+                                      {o.shot} shot
+                                    </span>
+                                  )}
                                   <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                     {sugarLabel(o.sugarLevel)}
                                   </span>
-                                  {o.milkType && !noMilk && (
+                                  {o.milkType && !noMilk && !isTea && (
                                     <span className="inline-flex items-center rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400 capitalize">
                                       {o.milkType} milk
                                     </span>
                                   )}
-                                  {o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
+                                  {isTea && o.syrups && o.syrups.length > 0 && (
+                                    <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
+                                      {o.syrups[0]}
+                                    </span>
+                                  )}
+                                  {!isTea && o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
                                     <span key={s} className="inline-flex items-center rounded-md bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400">
                                       {s}
                                     </span>
                                   ))}
-                                  {o.chocolateType && (
+                                  {o.chocolateType && !isTea && (
                                     <span className="inline-flex items-center rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:text-orange-400 capitalize">
                                       {o.chocolateType} choc.
                                     </span>
@@ -532,14 +570,17 @@ export default function BaristaPage() {
                     <span className="text-sm text-muted-foreground">({catOrders.length} orders)</span>
                   </div>
                   <div className="space-y-3">
-                    {catOrders.map((o) => (
+                    {catOrders.map((o) => {
+                      const isTea = (o.itemName || "").toLowerCase() === "tea"
+                      return (
                       <div key={o.id} className="rounded-xl border border-border bg-card p-4 grid grid-cols-2 gap-2 text-sm">
                         <div><span className="text-muted-foreground">Order:</span> <span className="font-mono font-bold">{o.orderNumber ? formatOrderNumber(o.orderNumber) : o.id.slice(0,6).toUpperCase()}</span></div>
                         <div><span className="text-muted-foreground">Status:</span> <span className="capitalize font-medium">{o.status}</span></div>
-                        <div><span className="text-muted-foreground">Strength:</span> <span className="capitalize">{o.coffeeStrength}</span></div>
+                        <div><span className="text-muted-foreground">{isTea ? "Brew Ratio:" : "Strength:"}</span> <span className="capitalize">{o.coffeeStrength}</span></div>
                         <div><span className="text-muted-foreground">Sugar:</span> {o.sugarLevel}/5</div>
                         <div><span className="text-muted-foreground">Cup:</span> <span className="capitalize">{o.cupType}</span></div>
-                        <div><span className="text-muted-foreground">Shot:</span> <span className="capitalize">{o.shot}</span></div>
+                        {!isTea && <div><span className="text-muted-foreground">Shot:</span> <span className="capitalize">{o.shot}</span></div>}
+                        {isTea && o.syrups.length > 0 && <div><span className="text-muted-foreground">Aroma:</span> {o.syrups[0]}</div>}
                         {o.price && <div className="col-span-2"><span className="text-muted-foreground">Price:</span> {o.price}</div>}
                         <div className="col-span-2 flex items-center gap-2">
                           {o.rating ? (
@@ -559,7 +600,7 @@ export default function BaristaPage() {
                         </div>
                         <div className="col-span-2 text-xs text-muted-foreground">{new Date(o.timestamp).toLocaleString("tr-TR")}</div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
               )

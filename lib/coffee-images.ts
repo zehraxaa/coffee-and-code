@@ -22,6 +22,7 @@ export const COFFEE_IMAGES: Record<string, string> = {
   "cappuccino":         "/images/cappuccino.jpg",
   "mocha":              "/images/mocha.png",
   "espresso":           "/images/espresso.jpg",
+  "tea":                "/images/tea.jpg",
   "iced-latte":         "/images/iced-latte.jpg",
   "iced-spanish-latte": "/images/iced-spanish-latte.jpg",
   "iced-americano":     "/images/Iced-Americano.jpg",

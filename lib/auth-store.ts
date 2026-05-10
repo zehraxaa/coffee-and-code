@@ -1,92 +1,147 @@
-// Gerçek bir backend yokken kullanıcıları localStorage'da saklayan auth katmanı
+import { supabase } from "@/lib/supabase"
 
 export interface StoredUser {
+  id: string
   email: string
-  password: string
   name: string
   surname: string
+  loyaltyStamps?: number
 }
 
-const STORAGE_KEY = "cc_users"
-
-function getUsers(): StoredUser[] {
-  if (typeof window === "undefined") return []
-  try {
-    return JSON.parse(localStorage.getItem(STORAGE_KEY) || "[]")
-  } catch {
-    return []
-  }
-}
-
-function saveUsers(users: StoredUser[]) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(users))
-}
-
-/** Yeni kullanıcı kaydeder. Email zaten varsa false döner. */
-export function registerUser(
+export async function registerUser(
   email: string,
   password: string,
   name: string,
   surname: string
-): { success: boolean; error?: string } {
-  const users = getUsers()
-  if (users.find((u) => u.email.toLowerCase() === email.toLowerCase())) {
-    return { success: false, error: "This email is already registered." }
+): Promise<{ success: boolean; error?: string; user?: StoredUser }> {
+  try {
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email: email.toLowerCase(),
+      password,
+      options: {
+        data: { name, surname }
+      }
+    })
+
+    if (authError) return { success: false, error: authError.message }
+    if (!authData.user) return { success: false, error: "No user returned from Supabase." }
+
+    // Create profile in database
+    const { error: profileError } = await supabase.from('profiles').insert({
+      id: authData.user.id,
+      email: authData.user.email!,
+      name,
+      surname,
+      loyalty_stamps: 0
+    })
+
+    if (profileError) return { success: false, error: profileError.message }
+
+    return { 
+      success: true, 
+      user: {
+        id: authData.user.id,
+        email: authData.user.email!,
+        name,
+        surname,
+        loyaltyStamps: 0
+      }
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
-  users.push({ email: email.toLowerCase(), password, name, surname })
-  saveUsers(users)
-  return { success: true }
 }
 
-/** Email + şifre doğrular. Başarılı ise kullanıcıyı döner. */
-export function loginUser(
+export async function loginUser(
   email: string,
   password: string
-): { user: StoredUser | null; error?: string } {
-  const users = getUsers()
-  const found = users.find((u) => u.email.toLowerCase() === email.toLowerCase())
-  if (!found) {
-    return { user: null, error: "No account found with this email. Please sign up first." }
+): Promise<{ user: StoredUser | null; error?: string }> {
+  try {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password,
+    })
+
+    if (authError) return { user: null, error: authError.message }
+    if (!authData.user) return { user: null, error: "Login failed." }
+
+    // Fetch profile
+    const { data: profileData, error: profileError } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single()
+
+    if (profileError || !profileData) {
+      return { user: null, error: "Profile not found." }
+    }
+
+    return { 
+      user: {
+        id: authData.user.id,
+        email: profileData.email,
+        name: profileData.name,
+        surname: profileData.surname,
+        loyaltyStamps: profileData.loyalty_stamps
+      }
+    }
+  } catch (err: any) {
+    return { user: null, error: err.message }
   }
-  if (found.password !== password) {
-    return { user: null, error: "Incorrect password." }
-  }
-  return { user: found }
 }
 
-/** Kullanıcı bilgilerini günceller (ad, soyad, email, şifre). */
-export function updateUser(
-  currentEmail: string,
-  updates: Partial<Pick<StoredUser, "name" | "surname" | "email" | "password">>
-): { success: boolean; error?: string; updatedUser?: StoredUser } {
-  const users = getUsers()
-  const idx = users.findIndex((u) => u.email.toLowerCase() === currentEmail.toLowerCase())
-  if (idx === -1) return { success: false, error: "User not found." }
+export async function updateUser(
+  userId: string,
+  updates: Partial<Pick<StoredUser, "name" | "surname" | "email">>
+): Promise<{ success: boolean; error?: string; updatedUser?: StoredUser }> {
+  try {
+    const profileUpdates: any = {}
+    if (updates.name) profileUpdates.name = updates.name
+    if (updates.surname) profileUpdates.surname = updates.surname
+    if (updates.email) profileUpdates.email = updates.email.toLowerCase()
 
-  // Email değişiyorsa başka kullanıcıda var mı kontrol et
-  if (updates.email && updates.email.toLowerCase() !== currentEmail.toLowerCase()) {
-    const emailTaken = users.find((u) => u.email.toLowerCase() === updates.email!.toLowerCase())
-    if (emailTaken) return { success: false, error: "This email is already in use." }
+    if (updates.email) {
+      // Update email in Auth
+      const { error: authError } = await supabase.auth.updateUser({ email: updates.email.toLowerCase() })
+      if (authError) return { success: false, error: authError.message }
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .update(profileUpdates)
+      .eq('id', userId)
+      .select()
+      .single()
+
+    if (error) return { success: false, error: error.message }
+
+    return { 
+      success: true, 
+      updatedUser: {
+        id: data.id,
+        email: data.email,
+        name: data.name,
+        surname: data.surname,
+        loyaltyStamps: data.loyalty_stamps
+      } 
+    }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
-
-  users[idx] = { ...users[idx], ...updates }
-  saveUsers(users)
-  return { success: true, updatedUser: users[idx] }
 }
 
-/** Şifre değişikliği — mevcut şifreyi doğrular. */
-export function changePassword(
-  email: string,
-  currentPassword: string,
+export async function changePassword(
   newPassword: string
-): { success: boolean; error?: string } {
-  const users = getUsers()
-  const idx = users.findIndex((u) => u.email.toLowerCase() === email.toLowerCase())
-  if (idx === -1) return { success: false, error: "User not found." }
-  if (users[idx].password !== currentPassword) {
-    return { success: false, error: "Current password is incorrect." }
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const { error } = await supabase.auth.updateUser({ password: newPassword })
+    if (error) return { success: false, error: error.message }
+    return { success: true }
+  } catch (err: any) {
+    return { success: false, error: err.message }
   }
-  users[idx].password = newPassword
-  saveUsers(users)
-  return { success: true }
+}
+
+export async function logoutUser() {
+  await supabase.auth.signOut()
 }

@@ -41,7 +41,7 @@ export function AuthDialog({ open, onOpenChange, onAuth, defaultSignUp = false }
     setError(null)
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError(null)
     setLoading(true)
@@ -57,16 +57,15 @@ export function AuthDialog({ open, onOpenChange, onAuth, defaultSignUp = false }
         setLoading(false)
         return
       }
-      const result = registerUser(email, password, name.trim(), surname.trim())
-      if (!result.success) {
+      const result = await registerUser(email, password, name.trim(), surname.trim())
+      if (!result.success || !result.user) {
         setError(result.error || "Registration failed.")
         setLoading(false)
         return
       }
-      // Kayıt başarılı → direkt giriş yaptır
-      onAuth({ email: email.toLowerCase(), password, name: name.trim(), surname: surname.trim() })
+      onAuth(result.user)
     } else {
-      const result = loginUser(email, password)
+      const result = await loginUser(email, password)
       if (!result.user) {
         setError(result.error || "Login failed.")
         setLoading(false)

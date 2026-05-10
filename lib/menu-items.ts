@@ -55,6 +55,13 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     price: 100,
     category: "hot",
   },
+  {
+    id: "tea",
+    name: "Tea",
+    description: "Freshly brewed hot tea",
+    price: 50,
+    category: "hot",
+  },
 ]
 
 export const ICED_MENU_ITEMS: MenuItem[] = [

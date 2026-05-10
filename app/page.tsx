@@ -22,7 +22,9 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import type { Order, OrderStatus } from "@/lib/types"
+import { logoutUser } from "@/lib/auth-store"
 import type { StoredUser } from "@/lib/auth-store"
+import { supabase } from "@/lib/supabase"
 
 export default function Home() {
   const [showSplash, setShowSplash] = useState(true)
@@ -39,6 +41,7 @@ export default function Home() {
   const [loyaltyStamps, setLoyaltyStamps] = useState(0)
   const [orderReadyNotificationOpen, setOrderReadyNotificationOpen] = useState(false)
   const [selectedMenuItem, setSelectedMenuItem] = useState<{ name: string; price: string } | null>(null)
+  const [prefillOrder, setPrefillOrder] = useState<Order | null>(null)
   const [settingsDialogOpen, setSettingsDialogOpen] = useState(false)
   const [settingsDialogType, setSettingsDialogType] = useState<"account" | "password">("account")
   const [darkMode, setDarkMode] = useState(false)
@@ -60,6 +63,42 @@ export default function Home() {
     window.scrollTo({ top: 0, behavior: "smooth" })
   }, [activeTab])
 
+  // Mount anında Supabase oturumunu kontrol et
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', session.user.id)
+          .single()
+          
+        if (profile) {
+          setIsLoggedIn(true)
+          setLoggedInUser({
+            id: session.user.id,
+            email: profile.email,
+            name: profile.name,
+            surname: profile.surname,
+            loyaltyStamps: profile.loyalty_stamps
+          })
+          setLoyaltyStamps(profile.loyalty_stamps)
+        }
+      }
+    }
+    checkSession()
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false)
+        setLoggedInUser(null)
+      }
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
   // ────────────────────────────────────────────
   // Sipariş yerleştirme
   // ────────────────────────────────────────────
@@ -76,6 +115,13 @@ export default function Home() {
     toast({ title: "Order Placed! 🎉", description: "Your order has been received." })
     setSelectedMenuItem(null)
     setPendingOrder(null)
+    setPrefillOrder(null)
+  }
+
+  const handleReorder = (order: Order) => {
+    setPrefillOrder(order)
+    setSelectedMenuItem(null)
+    setActiveTab("order")
   }
 
   const handlePlaceOrder = (orderData: Omit<Order, "id" | "timestamp">) => {
@@ -116,13 +162,18 @@ export default function Home() {
       }
 
       if (order.status === "completed" && prev !== "completed") {
-        if (!order.isGuest) {
+        if (!order.isGuest && loggedInUser) {
           // Daha önce bu siparişe stamp verilmişse tekrar verme
           const stampedKey = `cc_stamped_${order.id}`
           if (!localStorage.getItem(stampedKey)) {
             localStorage.setItem(stampedKey, "1")
             setLoyaltyStamps((s) => {
               const next = s + 1
+              const finalStamps = next >= 10 ? 10 : next
+              
+              // Veritabanını güncelle
+              supabase.from('profiles').update({ loyalty_stamps: finalStamps }).eq('id', loggedInUser.id).then()
+              
               setTimeout(() => {
                 if (next >= 10) {
                   const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
@@ -132,7 +183,7 @@ export default function Home() {
                   toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
                 }
               }, 0)
-              return next >= 10 ? 10 : next
+              return finalStamps
             })
           }
         }
@@ -140,7 +191,7 @@ export default function Home() {
 
       prevStatusesRef.current.set(order.id, order.status)
     })
-  }, [orders])
+  }, [orders, loggedInUser])
 
   // ────────────────────────────────────────────
   // Auth
@@ -158,7 +209,8 @@ export default function Home() {
     }
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await logoutUser()
     setIsLoggedIn(false)
     setLoggedInUser(null)
     toast({ title: "Signed Out", description: "You've been signed out successfully." })
@@ -236,30 +288,42 @@ export default function Home() {
             <HomeView
               hasSeenPromo={hasSeenPromo}
               onPromoClosed={() => setHasSeenPromo(true)}
-              onViewFullMenu={() => setActiveTab("menu")}
+              onViewFullMenu={() => {
+                setSelectedMenuItem(null)
+                setPrefillOrder(null)
+                setActiveTab("menu")
+              }}
               loyaltyStamps={loyaltyStamps}
               freeCoffeeCode={freeCoffeeCode}
               onRedeemFreeCoffee={() => { setFreeCoffeeCode(null); setLoyaltyStamps(0) }}
               onOrderCoffeeOfMonth={() => {
                 setSelectedMenuItem({ name: "Spanish Latte", price: "120TL" })
+                setPrefillOrder(null)
                 setActiveTab("order")
               }}
-              onOrderFavorite={(item) => handleMenuItemSelect(item)}
+              onOrderFavorite={(item) => {
+                setPrefillOrder(null)
+                handleMenuItemSelect(item)
+              }}
               campaigns={campaigns}
               orders={orders}
             />
           )}
           {activeTab === "order" && (
             <CustomOrderForm
-              onBack={() => setActiveTab(selectedMenuItem ? "menu" : "home")}
+              onBack={() => {
+                setPrefillOrder(null)
+                setActiveTab(selectedMenuItem ? "menu" : "home")
+              }}
               onPlaceOrder={handlePlaceOrder}
               preselectedItem={selectedMenuItem || undefined}
               orders={orders}
+              prefillOrder={prefillOrder || undefined}
             />
           )}
           {activeTab === "menu" && <MenuView onBack={() => setActiveTab("home")} onSelectItem={handleMenuItemSelect} selectedCategory={menuCategory} onCategoryChange={setMenuCategory} />}
           {activeTab === "stores" && <StoresView />}
-          {activeTab === "activity" && <ActivityView orders={orders} onRateOrder={handleRateOrder} />}
+          {activeTab === "activity" && <ActivityView orders={orders} onRateOrder={handleRateOrder} onReorder={handleReorder} />}
           {activeTab === "account" && (
             <div className="space-y-6">
               <h1 className="text-2xl font-bold text-foreground">Account & Settings</h1>

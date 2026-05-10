@@ -59,14 +59,14 @@ export function SettingsDialog({
     }
   }, [open, currentUser])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     setError(null)
     setSuccess(null)
 
     if (!currentUser) return
 
     if (dialogType === "password") {
-      if (!currentPassword || !newPassword || !confirmPassword) {
+      if (!newPassword || !confirmPassword) {
         setError("Please fill in all password fields.")
         return
       }
@@ -78,23 +78,21 @@ export function SettingsDialog({
         setError("Passwords do not match.")
         return
       }
-      const result = changePassword(currentUser.email, currentPassword, newPassword)
+      const result = await changePassword(newPassword)
       if (!result.success) {
         setError(result.error || "Failed to change password.")
         return
       }
       setSuccess("Password changed successfully!")
-      setCurrentPassword("")
       setNewPassword("")
       setConfirmPassword("")
-      // Şifre değişikliğinde kullanıcı objesini de güncelle
-      onSaved({ ...currentUser, password: newPassword })
+      onSaved(currentUser)
     } else {
       if (!name.trim() || !surname.trim() || !email.trim()) {
         setError("Name, surname and email are required.")
         return
       }
-      const result = updateUser(currentUser.email, {
+      const result = await updateUser(currentUser.id, {
         name: name.trim(),
         surname: surname.trim(),
         email: email.trim().toLowerCase(),
@@ -137,16 +135,7 @@ export function SettingsDialog({
 
           {dialogType === "password" ? (
             <>
-              <div className="grid gap-2">
-                <Label htmlFor="current-password">Current Password</Label>
-                <Input
-                  id="current-password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                />
-              </div>
+
               <div className="grid gap-2">
                 <Label htmlFor="new-password">New Password</Label>
                 <Input

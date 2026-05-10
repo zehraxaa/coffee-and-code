@@ -18,6 +18,10 @@ function isNoMilk(name?: string) {
   return NO_MILK_IDS.some((n) => (name || "").toLowerCase().includes(n))
 }
 
+function isTea(name?: string) {
+  return (name || "").toLowerCase() === "tea"
+}
+
 interface OrderCardProps {
   order: Order
   column: "received" | "preparing" | "ready"
@@ -81,20 +85,25 @@ function OrderCard({ order, column, isExpanded, onToggle, onUpdate }: OrderCardP
       {isExpanded && (
         <div className={`px-3 pb-3 pt-2 border-t ${borderColor} ${expandedBg} space-y-3`}>
           <div className="space-y-1 text-xs">
-            <Row label="Strength" value={<span className="capitalize">{order.coffeeStrength}</span>} />
+            <Row label={isTea(order.itemName) ? "Brew Ratio" : "Strength"} value={<span className="capitalize">{order.coffeeStrength}</span>} />
             <Row label="Sugar" value={`${order.sugarLevel}/5`} />
-            <Row label="Shot" value={<span className="capitalize">{order.shot}</span>} />
+            {!isTea(order.itemName) && (
+              <Row label="Shot" value={<span className="capitalize">{order.shot}</span>} />
+            )}
             <Row label="Cup" value={<span className="capitalize">{order.cupType}</span>} />
             {order.cupSize && (
               <Row label="Size" value={<span className="capitalize">{order.cupSize}</span>} />
             )}
-            {!isNoMilk(order.itemName) && (
+            {!isNoMilk(order.itemName) && !isTea(order.itemName) && (
               <Row label="Milk" value={<span className="capitalize">{order.milkType}</span>} />
             )}
-            {order.chocolateType && (
+            {order.chocolateType && !isTea(order.itemName) && (
               <Row label="Chocolate" value={<span className="capitalize">{order.chocolateType}</span>} />
             )}
-            {order.syrups && order.syrups.length > 0 && (
+            {isTea(order.itemName) && order.syrups && order.syrups.length > 0 && (
+              <Row label="Aroma" value={order.syrups[0]} />
+            )}
+            {!isTea(order.itemName) && order.syrups && order.syrups.length > 0 && (
               <Row label="Syrups" value={order.syrups.join(", ")} />
             )}
             {order.price && <Row label="Price" value={order.price} />}

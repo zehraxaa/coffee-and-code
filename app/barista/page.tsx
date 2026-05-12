@@ -38,7 +38,6 @@ import type { CoffeeOfMonth } from "@/lib/types"
 import { getCoffeeImage } from "@/lib/coffee-images"
 import { DateInput } from "@/components/ui/date-input"
 
-const COFFEE_OF_MONTH_KEY = "cc_coffee_of_month"
 const BARISTA_PIN_KEY = "cc_barista_pin"
 
 // Yetkili yönetici bilgileri (hardcoded — sadece bu kişi PIN değiştirebilir)
@@ -110,21 +109,42 @@ export default function BaristaPage() {
   const comImageInputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    try {
-      const stored = localStorage.getItem(COFFEE_OF_MONTH_KEY)
-      if (stored) {
-        const c: CoffeeOfMonth = JSON.parse(stored)
-        setComName(c.name)
-        setComDesc(c.description)
-        setComOrigin(c.origin)
-        if (c.imageUrl) setComImageUrl(c.imageUrl)
+    const loadCoffeeOfMonth = async () => {
+      const { data, error } = await supabase
+        .from("coffee_of_month")
+        .select("*")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (data && !error) {
+        setComName(data.name)
+        setComDesc(data.description)
+        setComOrigin(data.origin)
+        setComImageUrl(data.image_url || null)
       }
-    } catch { /* ignore */ }
+    }
+
+    loadCoffeeOfMonth()
   }, [])
 
-  const handleSaveCoffeeOfMonth = () => {
-    const data: CoffeeOfMonth = { name: comName, description: comDesc, origin: comOrigin, imageUrl: comImageUrl || undefined, updatedAt: new Date().toISOString() }
-    localStorage.setItem(COFFEE_OF_MONTH_KEY, JSON.stringify(data))
+  const handleSaveCoffeeOfMonth = async () => {
+    const payload = {
+      id: 1,
+      name: comName,
+      description: comDesc,
+      origin: comOrigin,
+      image_url: comImageUrl,
+      updated_at: new Date().toISOString(),
+    }
+
+    const { error } = await supabase.from("coffee_of_month").upsert(payload)
+
+    if (error) {
+      toast({ title: "Save failed", description: error.message })
+      return
+    }
+
     setComSaved(true)
     setTimeout(() => setComSaved(false), 3000)
     toast({ title: "Coffee of the Month Updated!", description: `Now showing: ${comName}` })

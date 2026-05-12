@@ -30,11 +30,6 @@ export const COFFEE_IMAGES: Record<string, string> = {
   "iced-mocha":         "/images/iced-mocha.jpg",
 }
 
-/**
- * Kahve adına göre görsel yolunu döndürür.
- * Önce tam eşleşme dener, bulamazsa küçük harfe çevirip slug'a dönüştürür.
- * Görsel yoksa undefined döner.
- */
 export function getCoffeeImage(itemName: string): string | undefined {
   // Doğrudan id ile eşleşme (menu-items.ts'deki id)
   if (COFFEE_IMAGES[itemName]) return COFFEE_IMAGES[itemName]

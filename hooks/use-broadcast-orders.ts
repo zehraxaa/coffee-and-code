@@ -4,7 +4,11 @@ import { useState, useEffect, useCallback, useRef } from "react"
 import type { Order, OrderStatus } from "@/lib/types"
 import { supabase } from "@/lib/supabase"
 
-export function useBroadcastOrders() {
+type UseBroadcastOrdersOptions = {
+  observeBaristaPresence?: boolean
+}
+
+export function useBroadcastOrders({ observeBaristaPresence = true }: UseBroadcastOrdersOptions = {}) {
   const [orders, setOrders] = useState<Order[]>([])
   const isBaristaOnlineRef = useRef(false)
 
@@ -103,15 +107,9 @@ export function useBroadcastOrders() {
       .subscribe()
 
     // 3. Barista çevrimiçi durumunu dinle
-    const presenceChannelName = 'barista_presence'
-    const existingPresence = supabase.getChannels().find(c => c.topic === `realtime:${presenceChannelName}`)
-    if (existingPresence) {
-      supabase.removeChannel(existingPresence)
-    }
-
-    const presenceChannel = supabase.channel(presenceChannelName)
+    const presenceChannel = observeBaristaPresence ? supabase.channel('barista_presence') : null
     presenceChannel
-      .on('presence', { event: 'sync' }, () => {
+      ?.on('presence', { event: 'sync' }, () => {
         const state = presenceChannel.presenceState()
         isBaristaOnlineRef.current = Object.keys(state).length > 0
       })
@@ -119,9 +117,11 @@ export function useBroadcastOrders() {
 
     return () => {
       supabase.removeChannel(channel)
-      supabase.removeChannel(presenceChannel)
+      if (presenceChannel) {
+        supabase.removeChannel(presenceChannel)
+      }
     }
-  }, [])
+  }, [observeBaristaPresence])
 
   const broadcastPlaceOrder = useCallback(async (order: Order) => {
     // Optimistic UI update: Anında arayüzde göster
@@ -157,7 +157,14 @@ export function useBroadcastOrders() {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ order })
-        }).catch(err => console.error("Error sending email notification:", err))
+        })
+          .then(async (response) => {
+            if (!response.ok) {
+              const body = await response.text()
+              console.error("Error sending email notification:", response.status, body)
+            }
+          })
+          .catch(err => console.error("Error sending email notification:", err))
       }
     }
   }, [])

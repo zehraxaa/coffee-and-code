@@ -22,7 +22,7 @@ import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
 import type { Order, OrderStatus } from "@/lib/types"
-import { logoutUser } from "@/lib/auth-store"
+import { clearSupabaseAuthCache, logoutUser } from "@/lib/auth-store"
 import type { StoredUser } from "@/lib/auth-store"
 import { supabase } from "@/lib/supabase"
 
@@ -66,25 +66,36 @@ export default function Home() {
   // Mount anında Supabase oturumunu kontrol et
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single()
-          
-        if (profile) {
-          setIsLoggedIn(true)
-          setLoggedInUser({
-            id: session.user.id,
-            email: profile.email,
-            name: profile.name,
-            surname: profile.surname,
-            loyaltyStamps: profile.loyalty_stamps
-          })
-          setLoyaltyStamps(profile.loyalty_stamps)
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession()
+
+        if (error) {
+          clearSupabaseAuthCache()
+          return
         }
+
+        if (session?.user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single()
+
+          if (profile) {
+            setIsLoggedIn(true)
+            setLoggedInUser({
+              id: session.user.id,
+              email: profile.email,
+              name: profile.name,
+              surname: profile.surname,
+              loyaltyStamps: profile.loyalty_stamps
+            })
+            setLoyaltyStamps(profile.loyalty_stamps)
+          }
+        }
+      } catch (error) {
+        console.warn("Supabase session could not be restored:", error)
+        clearSupabaseAuthCache()
       }
     }
     checkSession()

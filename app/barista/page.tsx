@@ -65,7 +65,7 @@ const sidebarItems: SidebarItem[] = [
 ]
 
 export default function BaristaPage() {
-  const { orders, broadcastUpdateStatus } = useBroadcastOrders()
+  const { orders, broadcastUpdateStatus } = useBroadcastOrders({ observeBaristaPresence: false })
   const {
     campaigns,
     splashImageUrl,
@@ -167,13 +167,7 @@ export default function BaristaPage() {
   useEffect(() => {
     if (!isAuthenticated) return
 
-    const channelName = 'barista_presence'
-    const existingChannel = supabase.getChannels().find(c => c.topic === `realtime:${channelName}`)
-    if (existingChannel) {
-      supabase.removeChannel(existingChannel)
-    }
-
-    const channel = supabase.channel(channelName, {
+    const channel = supabase.channel('barista_presence', {
       config: { presence: { key: 'barista' } }
     })
 
@@ -192,6 +186,7 @@ export default function BaristaPage() {
 
   const handleLogin = () => {
     if (codeInput === getBaristaPin()) {
+      window.dispatchEvent(new Event("barista-audio-unlock"))
       setIsAuthenticated(true)
       setCodeError(false)
     } else {
@@ -237,45 +232,21 @@ export default function BaristaPage() {
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    let audioCtx: AudioContext | null = null
-    let audioBuffer: AudioBuffer | null = null
-
-    const initAudio = async () => {
-      try {
-        audioCtx = new AudioContext()
-        const response = await fetch("/new-order.webm")
-        const arrayBuffer = await response.arrayBuffer()
-        audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
-      } catch (e) {
-        console.warn("Audio init failed:", e)
-      }
-    }
-
-    initAudio()
+    const notificationAudio = new Audio("/sounds/new-order.mp3")
+    notificationAudio.preload = "auto"
+    notificationAudio.volume = 0.85
 
     const unlockAudio = () => {
-      if (audioCtx && audioCtx.state === "suspended") {
-        audioCtx.resume()
-      }
+      notificationAudio.load()
     }
+
     window.addEventListener("pointerdown", unlockAudio, { once: false })
     window.addEventListener("keydown", unlockAudio, { once: false })
+    window.addEventListener("barista-audio-unlock", unlockAudio)
 
     const playSound = () => {
-      if (!audioCtx || !audioBuffer) return
-      if (audioCtx.state === "suspended") {
-        audioCtx.resume().then(() => {
-          const source = audioCtx!.createBufferSource()
-          source.buffer = audioBuffer
-          source.connect(audioCtx!.destination)
-          source.start(0)
-        })
-      } else {
-        const source = audioCtx.createBufferSource()
-        source.buffer = audioBuffer
-        source.connect(audioCtx.destination)
-        source.start(0)
-      }
+      notificationAudio.currentTime = 0
+      notificationAudio.play().catch((e) => console.warn("Audio playback failed:", e))
     }
 
     const channelId = crypto.randomUUID()
@@ -293,7 +264,8 @@ export default function BaristaPage() {
       supabase.removeChannel(realtimeChannel)
       window.removeEventListener("pointerdown", unlockAudio)
       window.removeEventListener("keydown", unlockAudio)
-      audioCtx?.close()
+      window.removeEventListener("barista-audio-unlock", unlockAudio)
+      notificationAudio.pause()
     }
   }, [])
 

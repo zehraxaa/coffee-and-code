@@ -145,3 +145,11 @@ export async function changePassword(
 export async function logoutUser() {
   await supabase.auth.signOut()
 }
+
+export function clearSupabaseAuthCache() {
+  if (typeof window === "undefined") return
+
+  Object.keys(window.localStorage)
+    .filter((key) => key.startsWith("sb-") && key.endsWith("-auth-token"))
+    .forEach((key) => window.localStorage.removeItem(key))
+}

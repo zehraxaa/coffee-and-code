@@ -170,7 +170,15 @@ export function BaristaDashboard({ orders, onUpdateOrderStatus }: BaristaDashboa
   const preparing = active.filter((o) => o.status === "preparing")
   const ready = active.filter((o) => o.status === "ready")
 
-  const totalToday = orders.length
+  const today = new Date()
+  const totalToday = orders.filter(o => {
+    const d = o.timestamp instanceof Date ? o.timestamp : new Date(o.timestamp)
+    return (
+      d.getFullYear() === today.getFullYear() &&
+      d.getMonth() === today.getMonth() &&
+      d.getDate() === today.getDate()
+    )
+  }).length
 
   const colHeader = (
     label: string,

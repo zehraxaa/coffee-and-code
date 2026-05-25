@@ -13,11 +13,20 @@ export function useBroadcastOrders({ observeBaristaPresence = true }: UseBroadca
   const isBaristaOnlineRef = useRef(false)
 
   useEffect(() => {
-    // 1. İlk açılışta mevcut siparişleri Supabase'den çek
+    // Bugünün başlangıcını (yerel saat gece yarısı) ISO formatında döndür
+    const getTodayStart = () => {
+      const now = new Date()
+      const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+      return startOfDay.toISOString()
+    }
+
+    // 1. İlk açılışta mevcut BUGÜNKÜ siparişleri Supabase'den çek
     const fetchOrders = async () => {
+      const todayStart = getTodayStart()
       const { data, error } = await supabase
         .from('orders')
         .select('*')
+        .gte('created_at', todayStart)
         .order('created_at', { ascending: false })
       
       if (!error && data) {
@@ -59,9 +68,18 @@ export function useBroadcastOrders({ observeBaristaPresence = true }: UseBroadca
         (payload) => {
           if (payload.eventType === 'INSERT') {
             const o = payload.new
+            // Sadece bugünkü siparişleri ekle
+            const orderDate = new Date(o.created_at)
+            const now = new Date()
+            const isToday =
+              orderDate.getFullYear() === now.getFullYear() &&
+              orderDate.getMonth() === now.getMonth() &&
+              orderDate.getDate() === now.getDate()
+            if (!isToday) return
+
             const newOrder: Order = {
               id: o.id,
-              timestamp: new Date(o.created_at),
+              timestamp: orderDate,
               orderNumber: o.order_number,
               itemName: o.item_name,
               coffeeStrength: o.coffee_strength,

@@ -50,6 +50,8 @@ export interface Order {
   syrups: string[]
   chocolateType?: "white" | "milk" | "dark"
   isGuest?: boolean
+  /** Logged-in user UUID or a guest session ID (prefixed "guest_") */
+  userId?: string
   status: OrderStatus
   rating?: number
   review?: string

@@ -65,7 +65,7 @@ const sidebarItems: SidebarItem[] = [
 ]
 
 export default function BaristaPage() {
-  const { orders, broadcastUpdateStatus } = useBroadcastOrders({ observeBaristaPresence: false })
+  const { orders, broadcastUpdateStatus } = useBroadcastOrders({ observeBaristaPresence: false, mode: "barista" })
   const {
     campaigns,
     splashImageUrl,

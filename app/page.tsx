@@ -120,6 +120,17 @@ export default function Home() {
       orderNumber: getNextOrderNumber(),
       timestamp: new Date(),
       isGuest,
+      // Her siparişe sahip kaydı: giriş yapmışsa UUID, misafiryse session ID
+      userId: isGuest
+        ? (typeof window !== "undefined"
+            ? (() => {
+                const key = "cc_guest_session_id"
+                let id = sessionStorage.getItem(key)
+                if (!id) { id = "guest_" + crypto.randomUUID(); sessionStorage.setItem(key, id) }
+                return id
+              })()
+            : undefined)
+        : (loggedInUser?.id ?? undefined),
     }
     broadcastPlaceOrder(newOrder)
     setActiveTab("activity")

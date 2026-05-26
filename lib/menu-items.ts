@@ -1,3 +1,17 @@
+export interface MenuItemCustomizations {
+  strength: boolean
+  sugar: boolean
+  shot: boolean
+  milk: boolean
+  size: boolean
+  syrup: boolean
+  syrupOptions?: string[]
+  chocolate: boolean
+  teaAroma: boolean
+}
+
+export const STANDARD_SYRUPS = ["Vanilla", "Caramel", "Hazelnut", "Lotus", "Peppermint", "Coconut", "Strawberry", "Mango", "Pumpkin"]
+
 export interface MenuItem {
   id: string
   name: string
@@ -5,6 +19,12 @@ export interface MenuItem {
   price: number
   popular?: boolean
   category: "hot" | "iced"
+  /** URL from Supabase image_url or local /images/ path */
+  imageUrl?: string
+  /** Barista-controlled display order */
+  sortOrder?: number
+  /** Dynamic customization rules */
+  customizations?: MenuItemCustomizations
   /** Calculated fields */
   originalPrice?: number
   discountPercent?: number
@@ -18,6 +38,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     price: 120,
     popular: true,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
   },
   {
     id: "latte",
@@ -26,6 +47,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     price: 100,
     popular: true,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
   },
   {
     id: "americano",
@@ -33,6 +55,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     description: "Espresso with hot water",
     price: 100,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: false, size: true, syrup: false, chocolate: false, teaAroma: false },
   },
   {
     id: "cappuccino",
@@ -40,6 +63,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     description: "Equal parts espresso, steamed milk, and foam",
     price: 100,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
   },
   {
     id: "mocha",
@@ -47,6 +71,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     description: "Espresso with chocolate and steamed milk",
     price: 100,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: true, teaAroma: false },
   },
   {
     id: "espresso",
@@ -54,6 +79,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     description: "Classic Italian coffee shot",
     price: 100,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: true, milk: false, size: true, syrup: false, chocolate: false, teaAroma: false },
   },
   {
     id: "tea",
@@ -61,6 +87,7 @@ export const HOT_MENU_ITEMS: MenuItem[] = [
     description: "Freshly brewed hot tea",
     price: 50,
     category: "hot",
+    customizations: { strength: true, sugar: true, shot: false, milk: false, size: true, syrup: false, chocolate: false, teaAroma: true },
   },
 ]
 
@@ -72,6 +99,7 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     price: 130,
     popular: true,
     category: "iced",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
   },
   {
     id: "iced-latte",
@@ -79,6 +107,7 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     description: "Espresso with cold milk poured over ice",
     price: 110,
     category: "iced",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
   },
   {
     id: "iced-americano",
@@ -86,6 +115,7 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     description: "Espresso with cold water and ice",
     price: 110,
     category: "iced",
+    customizations: { strength: true, sugar: true, shot: true, milk: false, size: true, syrup: false, chocolate: false, teaAroma: false },
   },
   {
     id: "cold-brew",
@@ -94,6 +124,7 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     price: 120,
     popular: true,
     category: "iced",
+    customizations: { strength: true, sugar: true, shot: true, milk: false, size: true, syrup: false, chocolate: false, teaAroma: false },
   },
   {
     id: "iced-mocha",
@@ -101,6 +132,7 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     description: "Espresso with chocolate and cold milk over ice",
     price: 120,
     category: "iced",
+    customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: true, teaAroma: false },
   },
 ]
 

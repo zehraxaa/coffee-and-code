@@ -8,14 +8,15 @@ type UseBroadcastOrdersOptions = {
   observeBaristaPresence?: boolean
   /**
    * "barista" → tüm siparişleri çek (barista paneli için)
-   * "customer" (default) → sadece bu kullanıcının siparişlerini çek
+   * "customer" (default) → sadece bu kullanıcının tüm geçmiş siparişlerini çek
    */
   mode?: "barista" | "customer"
+  enabled?: boolean
 }
 
-// ── Misafir kullanıcı için geçici ama oturum boyunca sabit ID ──────────────
-function getGuestSessionId(): string {
-  if (typeof window === "undefined") return "guest_ssr"
+// ── Misafir oturum ID'sini yöneten yardımcı ────────────────────────────────
+function getGuestSessionId(): string | null {
+  if (typeof window === "undefined") return null
   const key = "cc_guest_session_id"
   let id = sessionStorage.getItem(key)
   if (!id) {
@@ -51,81 +52,97 @@ function mapRow(o: Record<string, unknown>): Order {
   }
 }
 
-// ── Bugünün başlangıcını yerel saate göre ISO olarak döndür ───────────────
-function getTodayStart(): string {
-  const now = new Date()
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate()).toISOString()
-}
-
-// ── Bir siparişin bugüne ait olup olmadığını kontrol et ───────────────────
-function isToday(dateStr: string): boolean {
-  const d = new Date(dateStr)
-  const now = new Date()
-  return (
-    d.getFullYear() === now.getFullYear() &&
-    d.getMonth() === now.getMonth() &&
-    d.getDate() === now.getDate()
-  )
-}
-
 export function useBroadcastOrders({
   observeBaristaPresence = true,
   mode = "customer",
+  enabled = true,
 }: UseBroadcastOrdersOptions = {}) {
   const [orders, setOrders] = useState<Order[]>([])
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const isBaristaOnlineRef = useRef(false)
 
-  // Supabase Auth'dan gelen kullanıcı UUID'si (null = misafir veya henüz belli değil)
-  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
-
-  // Auth durumunu takip et
+  // ── 1. Oturum durumunu (Müşteri UUID veya Misafir ID) dinle ───────────────
   useEffect(() => {
-    const init = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      setCurrentUserId(session?.user?.id ?? null)
-    }
-    init()
+    if (!enabled) return
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setCurrentUserId(session?.user?.id ?? null)
+    // İlk oturumu al
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
+      } else {
+        setCurrentUserId(getGuestSessionId())
+      }
+    }).catch(err => {
+      console.error("Error getting session in hook:", err)
     })
+
+    // Oturum değişikliklerini dinle
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        setCurrentUserId(session.user.id)
+      } else {
+        setCurrentUserId(getGuestSessionId())
+      }
+    })
+
     return () => subscription.unsubscribe()
-  }, [])
+  }, [enabled])
 
+  // ── 2. Siparişleri Supabase'den çek ve Realtime dinle ────────────────────
   useEffect(() => {
-    // ── Kullanıcı kimliğini belirle ───────────────────────────────────────
-    // Barista modunda kullanıcı filtresi uygulanmaz.
-    // Customer modunda: oturum açmışsa UUID, misafiryse sessionStorage ID.
-    let effectiveUserId: string | null = null
-    if (mode === "customer") {
-      effectiveUserId = currentUserId ?? getGuestSessionId()
-    }
+    if (!enabled) return
+    if (mode === "customer" && !currentUserId) return
 
-    // ── 1. İlk yükleme: siparişleri Supabase'den çek ─────────────────────
     const fetchOrders = async () => {
-      let query = supabase
-        .from("orders")
-        .select("*")
-        .gte("created_at", getTodayStart())
-        .order("created_at", { ascending: false })
+      if (mode === "customer" && currentUserId && currentUserId.startsWith("guest_")) {
+        let guestOrderIds: string[] = []
+        try {
+          const stored = typeof window !== "undefined" ? localStorage.getItem("cc_guest_order_ids") : null
+          if (stored) {
+            guestOrderIds = JSON.parse(stored)
+            if (!Array.isArray(guestOrderIds)) guestOrderIds = []
+          }
+        } catch (e) {
+          console.error("Error parsing guest order IDs:", e)
+        }
 
-      // Müşteri modunda sadece kendi siparişleri
-      if (mode === "customer" && effectiveUserId) {
-        query = query.eq("user_id", effectiveUserId)
+        if (guestOrderIds.length === 0) {
+          setOrders([])
+          return
+        }
+
+        const { data, error } = await supabase
+          .from("orders")
+          .select("*")
+          .in("id", guestOrderIds)
+          .order("created_at", { ascending: false })
+
+        if (!error && data) {
+          setOrders(data.map(mapRow))
+        } else if (error) {
+          console.error("Error fetching orders:", error.message || error)
+        }
+        return
       }
 
-      const { data, error } = await query
+      let query = supabase.from("orders").select("*")
+
+      // Müşteri ise sadece kendi geçmiş siparişlerini çek (tarih sınırlaması yok!)
+      if (mode === "customer") {
+        query = query.eq("user_id", currentUserId)
+      }
+
+      const { data, error } = await query.order("created_at", { ascending: false })
 
       if (!error && data) {
         setOrders(data.map(mapRow))
       } else if (error) {
-        console.error("Error fetching orders:", error)
+        console.error("Error fetching orders:", error.message || error)
       }
     }
 
     fetchOrders()
 
-    // ── 2. Realtime değişiklikleri dinle ──────────────────────────────────
     const channelId = crypto.randomUUID()
     const channel = supabase
       .channel(`orders-realtime-${channelId}`)
@@ -135,13 +152,26 @@ export function useBroadcastOrders({
         (payload) => {
           if (payload.eventType === "INSERT") {
             const o = payload.new as Record<string, unknown>
-
-            // Bugün değilse yoksay
-            if (!isToday(o.created_at as string)) return
-
-            // Müşteri modunda: sadece kendi siparişini ekle
-            if (mode === "customer" && effectiveUserId) {
-              if ((o.user_id as string) !== effectiveUserId) return
+            
+            // Güvenlik ve İzolasyon: Müşteri ise sadece kendi siparişlerini listeye ekle
+            if (mode === "customer") {
+              if (currentUserId && currentUserId.startsWith("guest_")) {
+                let guestOrderIds: string[] = []
+                try {
+                  const stored = typeof window !== "undefined" ? localStorage.getItem("cc_guest_order_ids") : null
+                  if (stored) {
+                    guestOrderIds = JSON.parse(stored)
+                    if (!Array.isArray(guestOrderIds)) guestOrderIds = []
+                  }
+                } catch (e) {
+                  console.error("Error parsing guest order IDs in listener:", e)
+                }
+                if (!guestOrderIds.includes(o.id as string)) {
+                  return
+                }
+              } else if (o.user_id !== currentUserId) {
+                return
+              }
             }
 
             const newOrder = mapRow(o)
@@ -154,10 +184,6 @@ export function useBroadcastOrders({
             setOrders((prev) =>
               prev.map((item) => {
                 if (item.id !== (o.id as string)) return item
-                // Müşteri modunda: güncelleme kendi siparişine aitse işle
-                if (mode === "customer" && effectiveUserId) {
-                  if ((o.user_id as string) !== effectiveUserId) return item
-                }
                 return {
                   ...item,
                   status: o.status as OrderStatus,
@@ -176,7 +202,6 @@ export function useBroadcastOrders({
       )
       .subscribe()
 
-    // ── 3. Barista çevrimiçi durumunu dinle ───────────────────────────────
     const presenceChannel = observeBaristaPresence
       ? supabase.channel("barista_presence")
       : null
@@ -191,9 +216,9 @@ export function useBroadcastOrders({
       supabase.removeChannel(channel)
       if (presenceChannel) supabase.removeChannel(presenceChannel)
     }
-  }, [mode, observeBaristaPresence, currentUserId])
+  }, [mode, observeBaristaPresence, currentUserId, enabled])
 
-  // ── Sipariş ver ────────────────────────────────────────────────────────
+  // ── Sipariş ver ────────────────────────────────────────────────────
   const broadcastPlaceOrder = useCallback(
     async (order: Order) => {
       // Optimistic UI update
@@ -202,10 +227,21 @@ export function useBroadcastOrders({
         return [order, ...prev]
       })
 
-      // user_id: giriş yapmış kullanıcı UUID veya misafir session ID
-      const userId = order.userId ?? (order.isGuest ? getGuestSessionId() : null)
+      // Misafir siparişi ise, sipariş ID'sini localStorage'e kaydet
+      if (order.isGuest && typeof window !== "undefined") {
+        try {
+          const stored = localStorage.getItem("cc_guest_order_ids")
+          const ids: string[] = stored ? JSON.parse(stored) : []
+          if (Array.isArray(ids) && !ids.includes(order.id)) {
+            ids.push(order.id)
+            localStorage.setItem("cc_guest_order_ids", JSON.stringify(ids))
+          }
+        } catch (e) {
+          console.error("Error storing guest order ID:", e)
+        }
+      }
 
-      const { error } = await supabase.from("orders").insert({
+      const insertData: Record<string, unknown> = {
         id: order.id,
         order_number: order.orderNumber,
         item_name: order.itemName,
@@ -218,14 +254,26 @@ export function useBroadcastOrders({
         syrups: order.syrups,
         chocolate_type: order.chocolateType || null,
         is_guest: order.isGuest || false,
-        user_id: userId,
         status: order.status,
         price: order.price,
         note: order.note || null,
-      })
+      }
+
+      if (order.userId && !order.userId.startsWith("guest_")) {
+        insertData.user_id = order.userId
+      }
+
+      let { error } = await supabase.from("orders").insert(insertData)
+
+      // user_id kolonu yoksa fallback olarak kolonsuz tekrar dene
+      if (error && error.message?.includes("user_id")) {
+        delete insertData.user_id
+        const retry = await supabase.from("orders").insert(insertData)
+        error = retry.error
+      }
 
       if (error) {
-        console.error("Error inserting order:", error)
+        console.error("Error inserting order:", error.message || error)
       } else {
         if (!isBaristaOnlineRef.current) {
           fetch("/api/notify-barista", {
@@ -246,14 +294,14 @@ export function useBroadcastOrders({
     []
   )
 
-  // ── Sipariş durumunu güncelle ──────────────────────────────────────────
+  // ── Sipariş durumunu güncelle ──────────────────────────────────────
   const broadcastUpdateStatus = useCallback(async (orderId: string, status: OrderStatus) => {
     setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)))
     const { error } = await supabase.from("orders").update({ status }).eq("id", orderId)
-    if (error) console.error("Error updating order status:", error)
+    if (error) console.error("Error updating order status:", error.message || error)
   }, [])
 
-  // ── Siparişi puanla ───────────────────────────────────────────────────
+  // ── Siparişi puanla ───────────────────────────────────────────────
   const broadcastRateOrder = useCallback(
     async (orderId: string, rating: number, review: string, reviewerName?: string) => {
       setOrders((prev) =>
@@ -263,12 +311,12 @@ export function useBroadcastOrders({
         .from("orders")
         .update({ rating, review: review || null, reviewer_name: reviewerName || null })
         .eq("id", orderId)
-      if (error) console.error("Error rating order:", error)
+      if (error) console.error("Error rating order:", error.message || error)
     },
     []
   )
 
-  // ── Yorumu sil ────────────────────────────────────────────────────────
+  // ── Yorumu sil ────────────────────────────────────────────────────
   const broadcastDeleteReview = useCallback(async (orderId: string) => {
     setOrders((prev) =>
       prev.map((o) =>
@@ -281,7 +329,7 @@ export function useBroadcastOrders({
       .from("orders")
       .update({ rating: null, review: null, reviewer_name: null })
       .eq("id", orderId)
-    if (error) console.error("Error deleting review:", error)
+    if (error) console.error("Error deleting review:", error.message || error)
   }, [])
 
   return {

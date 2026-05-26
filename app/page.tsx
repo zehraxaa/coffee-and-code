@@ -104,6 +104,10 @@ export default function Home() {
       if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false)
         setLoggedInUser(null)
+        // Çıkış yapılınca stamp sayısını ve sipariş geçmişini sıfırla
+        setLoyaltyStamps(0)
+        setFreeCoffeeCode(null)
+        prevStatusesRef.current.clear()
       }
     })
 
@@ -113,11 +117,12 @@ export default function Home() {
   // ────────────────────────────────────────────
   // Sipariş yerleştirme
   // ────────────────────────────────────────────
-  const confirmPlaceOrder = (orderData: Omit<Order, "id" | "timestamp">, isGuest: boolean) => {
+  const confirmPlaceOrder = async (orderData: Omit<Order, "id" | "timestamp">, isGuest: boolean) => {
+    const orderNumber = await getNextOrderNumber()
     const newOrder: Order = {
       ...orderData,
       id: crypto.randomUUID(),
-      orderNumber: getNextOrderNumber(),
+      orderNumber,
       timestamp: new Date(),
       isGuest,
       // Her siparişe sahip kaydı: giriş yapmışsa UUID, misafiryse session ID
@@ -160,9 +165,9 @@ export default function Home() {
     setActiveTab("account")
   }
 
-  const handleLoyaltySkip = () => {
+  const handleLoyaltySkip = async () => {
     setShowLoyaltyPrompt(false)
-    if (pendingOrder) confirmPlaceOrder(pendingOrder, true)
+    if (pendingOrder) await confirmPlaceOrder(pendingOrder, true)
   }
 
   // ────────────────────────────────────────────
@@ -218,14 +223,18 @@ export default function Home() {
   // ────────────────────────────────────────────
   // Auth
   // ────────────────────────────────────────────
-  const handleAuth = (user: StoredUser) => {
+  const handleAuth = async (user: StoredUser) => {
     setIsLoggedIn(true)
     setLoggedInUser(user)
+    // Yeni kullanıcının gerçek stamp sayısını yükle — önceki kullanıcının değeri taşımasın
+    setLoyaltyStamps(user.loyaltyStamps ?? 0)
+    // Önceki siparişlerin statü referanslarını temizle — eski siparişe stamp vermesin
+    prevStatusesRef.current.clear()
     setAuthDialogOpen(false)
     toast({ title: `Welcome, ${user.name}! ☕`, description: "You've successfully signed in." })
 
     if (pendingOrder) {
-      confirmPlaceOrder(pendingOrder, false)
+      await confirmPlaceOrder(pendingOrder, false)
     } else if (selectedOrderId) {
       setReviewDialogOpen(true)
     }
@@ -235,6 +244,10 @@ export default function Home() {
     await logoutUser()
     setIsLoggedIn(false)
     setLoggedInUser(null)
+    // Önceki kullanıcının stamp sayısını ve sipariş geçmişini temizle
+    setLoyaltyStamps(0)
+    setFreeCoffeeCode(null)
+    prevStatusesRef.current.clear()
     toast({ title: "Signed Out", description: "You've been signed out successfully." })
   }
 
@@ -318,8 +331,8 @@ export default function Home() {
               loyaltyStamps={loyaltyStamps}
               freeCoffeeCode={freeCoffeeCode}
               onRedeemFreeCoffee={() => { setFreeCoffeeCode(null); setLoyaltyStamps(0) }}
-              onOrderCoffeeOfMonth={() => {
-                setSelectedMenuItem({ name: "Spanish Latte", price: "120TL" })
+              onOrderCoffeeOfMonth={(name, price) => {
+                setSelectedMenuItem({ name, price })
                 setPrefillOrder(null)
                 setActiveTab("order")
               }}

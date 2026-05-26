@@ -10,6 +10,7 @@ import Image from "next/image"
 import type { Campaign, Order, CoffeeOfMonth } from "@/lib/types"
 import { ALL_MENU_ITEMS } from "@/lib/menu-items"
 import { getCoffeeImage } from "@/lib/coffee-images"
+import { supabase } from "@/lib/supabase"
 
 const PROMO_STORAGE_KEY = "cc_splash_image"
 const COFFEE_OF_MONTH_KEY = "cc_coffee_of_month"
@@ -28,7 +29,7 @@ interface HomeViewProps {
   loyaltyStamps: number
   freeCoffeeCode?: string | null
   onRedeemFreeCoffee?: () => void
-  onOrderCoffeeOfMonth: () => void
+  onOrderCoffeeOfMonth: (name: string, price: string) => void
   onOrderFavorite: (item: { name: string; price: string }) => void
   campaigns?: Campaign[]
   orders?: Order[]
@@ -61,10 +62,39 @@ export function HomeView({
   // Load barista-set coffee of the month
   const [coffeeOfMonth, setCoffeeOfMonth] = useState<CoffeeOfMonth>(DEFAULT_COFFEE)
   useEffect(() => {
+    // 1. Fast fallback from localStorage
     try {
       const stored = localStorage.getItem(COFFEE_OF_MONTH_KEY)
       if (stored) setCoffeeOfMonth(JSON.parse(stored))
     } catch { /* ignore */ }
+
+    // 2. Fetch fresh data from Supabase
+    const fetchCoffeeOfMonth = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("coffee_of_month")
+          .select("*")
+          .order("updated_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+
+        if (data && !error) {
+          const freshCoffee: CoffeeOfMonth = {
+            name: data.name,
+            description: data.description,
+            origin: data.origin,
+            imageUrl: data.image_url || undefined,
+            updatedAt: data.updated_at,
+          }
+          setCoffeeOfMonth(freshCoffee)
+          localStorage.setItem(COFFEE_OF_MONTH_KEY, JSON.stringify(freshCoffee))
+        }
+      } catch (err) {
+        console.error("Error fetching coffee of the month:", err)
+      }
+    }
+
+    fetchCoffeeOfMonth()
   }, [])
 
   // Filter active campaigns (not expired)
@@ -78,12 +108,52 @@ export function HomeView({
     return () => clearInterval(interval)
   }, [activeCampaigns.length])
 
-  // ── Dynamic Customer Favorites ──────────────────────────────
+  // ── Dynamic Customer Favorites (Global) ──────────────────────────────
+  const [globalRatedOrders, setGlobalRatedOrders] = useState<Order[]>([])
+
+  useEffect(() => {
+    const fetchGlobalRatedOrders = async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .not("rating", "is", null)
+
+      if (!error && data) {
+        setGlobalRatedOrders(
+          data.map((o: any) => ({
+            id: o.id,
+            timestamp: new Date(o.created_at),
+            orderNumber: o.order_number,
+            itemName: o.item_name,
+            coffeeStrength: o.coffee_strength,
+            sugarLevel: o.sugar_level,
+            shot: o.shot,
+            milkType: o.milk_type || undefined,
+            cupType: o.cup_type,
+            cupSize: o.cup_size,
+            syrups: o.syrups || [],
+            chocolateType: o.chocolate_type || undefined,
+            isGuest: o.is_guest,
+            userId: o.user_id || undefined,
+            status: o.status,
+            rating: o.rating || undefined,
+            review: o.review || undefined,
+            reviewerName: o.reviewer_name || undefined,
+            price: o.price || undefined,
+            note: o.note || undefined,
+          }))
+        )
+      }
+    }
+
+    fetchGlobalRatedOrders()
+  }, [])
+
   // Group completed orders with ratings by itemName, compute avg rating + count
   const dynamicFavorites = useMemo(() => {
     const ratingMap: Record<string, { total: number; count: number; price: string }> = {}
 
-    orders.forEach((o) => {
+    globalRatedOrders.forEach((o) => {
       if (!o.rating || !o.itemName) return
       const key = o.itemName
       if (!ratingMap[key]) {
@@ -120,7 +190,7 @@ export function HomeView({
       ]
     }
     return sorted
-  }, [orders])
+  }, [globalRatedOrders])
 
 
   return (
@@ -316,7 +386,15 @@ export function HomeView({
                   </div>
                   <Button
                     className="w-full mt-3 bg-white text-foreground hover:bg-white/90"
-                    onClick={onOrderCoffeeOfMonth}
+                    onClick={() => {
+                      const menuItem = ALL_MENU_ITEMS.find(
+                        (m) => m.name.toLowerCase() === coffeeOfMonth.name.toLowerCase()
+                      )
+                      onOrderCoffeeOfMonth(
+                        coffeeOfMonth.name,
+                        menuItem ? `${menuItem.price} TL` : "120 TL"
+                      )
+                    }}
                   >
                     <Coffee className="mr-2 h-4 w-4" />
                     Order Now
@@ -339,7 +417,15 @@ export function HomeView({
                   </div>
                   <Button
                     className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                    onClick={onOrderCoffeeOfMonth}
+                    onClick={() => {
+                      const menuItem = ALL_MENU_ITEMS.find(
+                        (m) => m.name.toLowerCase() === coffeeOfMonth.name.toLowerCase()
+                      )
+                      onOrderCoffeeOfMonth(
+                        coffeeOfMonth.name,
+                        menuItem ? `${menuItem.price} TL` : "120 TL"
+                      )
+                    }}
                   >
                     <Coffee className="mr-2 h-4 w-4" />
                     Order Now

@@ -11,6 +11,7 @@ import type { Order } from "@/lib/types"
 import { formatDistanceToNow } from "date-fns"
 import { formatOrderNumber } from "@/lib/order-number"
 import { getCoffeeImage } from "@/lib/coffee-images"
+import { useMenuItems } from "@/hooks/use-menu-items"
 
 interface ActivityViewProps {
   orders: Order[]
@@ -19,6 +20,7 @@ interface ActivityViewProps {
 }
 
 export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewProps) {
+  const { menuItems } = useMenuItems()
   const isTeaOrder = (order: Order) => (order.itemName || "").toLowerCase() === "tea"
 
   const getStatusColor = (status: Order["status"]) => {
@@ -68,7 +70,8 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
   const pastOrders = orders.filter((order) => order.status === "completed" || order.status === "cancelled")
 
   const renderOrderCard = (order: Order, index: number) => {
-    const coffeeImg = getCoffeeImage(order.itemName || "")
+    const activeItem = menuItems.find(i => i.name === order.itemName)
+    const coffeeImg = getCoffeeImage(order.itemName || "") || activeItem?.imageUrl
     return (
     <motion.div
       key={order.id}

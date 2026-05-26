@@ -8,32 +8,12 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Coffee, Star, X } from "lucide-react"
 import type { Order } from "@/lib/types"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
-import { getMenuItemIdByName } from "@/lib/menu-items"
+import { getMenuItemIdByName, type MenuItemCustomizations, STANDARD_SYRUPS } from "@/lib/menu-items"
 import { getCoffeeImage } from "@/lib/coffee-images"
+import { supabase } from "@/lib/supabase"
+import { useMenuItems } from "@/hooks/use-menu-items"
 
-// Süt ve syrup gerektirmeyen içecekler
-const NO_MILK_ITEMS = ["americano", "espresso", "tea", "Americano", "Espresso", "Tea", "Iced Americano", "Cold Brew"]
-const MOCHA_ITEMS = ["mocha", "Mocha", "Iced Mocha"]
 const TEA_AROMAS = ["Regular", "Bergamot", "Ceylon"]
-
-function isNoMilkItem(name?: string) {
-  if (!name) return false
-  return NO_MILK_ITEMS.some((n) => name.toLowerCase().includes(n.toLowerCase()))
-}
-
-function isMochaItem(name?: string) {
-  if (!name) return false
-  return MOCHA_ITEMS.some((n) => name.toLowerCase().includes(n.toLowerCase()))
-}
-
-function isTeaItem(name?: string) {
-  return (name || "").toLowerCase() === "tea"
-}
-
-function isIcedItem(name?: string) {
-  if (!name) return false
-  return name.toLowerCase().includes("iced") || name.toLowerCase().includes("cold")
-}
 
 interface CustomOrderFormProps {
   onBack: () => void
@@ -51,10 +31,10 @@ interface OrderConfirmPopupProps {
   onConfirm: () => void
   onCancel: () => void
   note?: string
+  customizations: MenuItemCustomizations
 }
 
-function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note }: OrderConfirmPopupProps) {
-  const isTea = isTeaItem(itemName)
+function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note, customizations }: OrderConfirmPopupProps) {
   const sugarLabel = (v: number) => {
     if (v === 0) return "No Sugar"
     if (v === 1) return "Very Light"
@@ -92,47 +72,53 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note }
             <div>
               <p className="font-semibold text-foreground">{itemName}</p>
               <p className="text-xs text-muted-foreground">
-                {isTea ? "Hot drink" : `${order.shot} shot`}
+                {customizations.shot ? `${order.shot} shot` : "Beverage"}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-2 gap-2 text-sm">
-            <div className="p-3 rounded-xl bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">{isTea ? "Brew Ratio" : "Strength"}</p>
-              <p className="font-medium text-foreground capitalize">{order.coffeeStrength}</p>
-            </div>
-            <div className="p-3 rounded-xl bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Sugar</p>
-              <p className="font-medium text-foreground">{order.sugarLevel}/5 · {sugarLabel(order.sugarLevel)}</p>
-            </div>
+            {customizations.strength && (
+              <div className="p-3 rounded-xl bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">{customizations.teaAroma ? "Brew Ratio" : "Strength"}</p>
+                <p className="font-medium text-foreground capitalize">{order.coffeeStrength}</p>
+              </div>
+            )}
+            {customizations.sugar && (
+              <div className="p-3 rounded-xl bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">Sugar</p>
+                <p className="font-medium text-foreground">{order.sugarLevel}/5 · {sugarLabel(order.sugarLevel)}</p>
+              </div>
+            )}
             <div className="p-3 rounded-xl bg-muted/50">
               <p className="text-xs text-muted-foreground mb-1">Cup Type</p>
               <p className="font-medium text-foreground capitalize">{order.cupType}</p>
             </div>
-            <div className="p-3 rounded-xl bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Cup Size</p>
-              <p className="font-medium text-foreground capitalize">{order.cupSize}</p>
-            </div>
-            {order.milkType && !isNoMilkItem(order.itemName) && !isTea && (
+            {customizations.size && (
+              <div className="p-3 rounded-xl bg-muted/50">
+                <p className="text-xs text-muted-foreground mb-1">Cup Size</p>
+                <p className="font-medium text-foreground capitalize">{order.cupSize}</p>
+              </div>
+            )}
+            {customizations.milk && order.milkType && (
               <div className="p-3 rounded-xl bg-muted/50">
                 <p className="text-xs text-muted-foreground mb-1">Milk</p>
                 <p className="font-medium text-foreground capitalize">{order.milkType}</p>
               </div>
             )}
-            {order.chocolateType && !isTea && (
+            {customizations.chocolate && order.chocolateType && (
               <div className="p-3 rounded-xl bg-muted/50">
                 <p className="text-xs text-muted-foreground mb-1">Chocolate</p>
                 <p className="font-medium text-foreground capitalize">{order.chocolateType}</p>
               </div>
             )}
-            {isTea && order.syrups && order.syrups.length > 0 && (
+            {customizations.teaAroma && order.syrups && order.syrups.length > 0 && (
               <div className="p-3 rounded-xl bg-muted/50 col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Aroma</p>
                 <p className="font-medium text-foreground">{order.syrups[0]}</p>
               </div>
             )}
-            {!isTea && order.syrups && order.syrups.length > 0 && (
+            {customizations.syrup && order.syrups && order.syrups.length > 0 && (
               <div className="p-3 rounded-xl bg-muted/50 col-span-2">
                 <p className="text-xs text-muted-foreground mb-1">Syrups</p>
                 <p className="font-medium text-foreground">{order.syrups.join(", ")}</p>
@@ -172,29 +158,82 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note }
 
 export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders = [], prefillOrder }: CustomOrderFormProps) {
   const { applyDiscount } = useBroadcastCampaigns()
+  const { menuItems } = useMenuItems()
+  
+  const activeItemName = prefillOrder?.itemName || preselectedItem?.name
+  const activeItem = menuItems.find((i) => i.name === activeItemName)
+  const isIced = activeItem?.category === "iced"
+  
+  const customizations = activeItem?.customizations || {
+    strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false
+  }
+
   const [coffeeStrength, setCoffeeStrength] = useState<Order["coffeeStrength"]>(prefillOrder?.coffeeStrength || "balanced")
   const [sugarLevel, setSugarLevel] = useState([prefillOrder?.sugarLevel ?? 0])
   const [shot, setShot] = useState<"single" | "double">(prefillOrder?.shot || "single")
   const [milkType, setMilkType] = useState<"whole" | "lactose-free" | "oat">(prefillOrder?.milkType || "whole")
   const [cupType, setCupType] = useState<"paper" | "plastic" | "glass" | "porcelain">(
-    prefillOrder?.cupType || (isIcedItem(preselectedItem?.name || prefillOrder?.itemName) ? "plastic" : "paper")
+    prefillOrder?.cupType || (isIced ? "plastic" : "paper")
   )
   const [cupSize, setCupSize] = useState<"small" | "medium" | "large">(prefillOrder?.cupSize || "small")
   const [syrups, setSyrups] = useState<string[]>(prefillOrder?.syrups || [])
   const [teaAroma, setTeaAroma] = useState<string | undefined>(
-    prefillOrder?.itemName && isTeaItem(prefillOrder.itemName) ? prefillOrder.syrups?.[0] : undefined
+    prefillOrder?.itemName && customizations.teaAroma ? prefillOrder.syrups?.[0] : undefined
   )
   const [chocolateType, setChocolateType] = useState<"white" | "milk" | "dark">(prefillOrder?.chocolateType || "milk")
   const [showConfirm, setShowConfirm] = useState(false)
   const [note, setNote] = useState(prefillOrder?.note || "")
 
-  const activeItemName = prefillOrder?.itemName || preselectedItem?.name
-  const isTea = isTeaItem(activeItemName)
-  const noMilk = isNoMilkItem(activeItemName)
-  const isMocha = isMochaItem(activeItemName)
-  const isIced = isIcedItem(activeItemName)
+  const [itemReviews, setItemReviews] = useState<Order[]>([])
+  const [reviewsLoading, setReviewsLoading] = useState(false)
 
-  const availableSyrups = ["Vanilla", "Caramel", "Hazelnut", "Lotus", "Peppermint"]
+  useEffect(() => {
+    if (!activeItemName) return
+
+    const fetchReviews = async () => {
+      setReviewsLoading(true)
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .not("rating", "is", null)
+        .eq("item_name", activeItemName)
+        .order("created_at", { ascending: false })
+
+      if (!error && data) {
+        setItemReviews(
+          data.map((o: any) => ({
+            id: o.id,
+            timestamp: new Date(o.created_at),
+            orderNumber: o.order_number,
+            itemName: o.item_name,
+            coffeeStrength: o.coffee_strength,
+            sugarLevel: o.sugar_level,
+            shot: o.shot,
+            milkType: o.milk_type || undefined,
+            cupType: o.cup_type,
+            cupSize: o.cup_size,
+            syrups: o.syrups || [],
+            chocolateType: o.chocolate_type || undefined,
+            isGuest: o.is_guest,
+            userId: o.user_id || undefined,
+            status: o.status,
+            rating: o.rating || undefined,
+            review: o.review || undefined,
+            reviewerName: o.reviewer_name || undefined,
+            price: o.price || undefined,
+            note: o.note || undefined,
+          }))
+        )
+      }
+      setReviewsLoading(false)
+    }
+
+    fetchReviews()
+  }, [activeItemName])
+
+  const availableSyrups = customizations.syrupOptions && customizations.syrupOptions.length > 0
+    ? customizations.syrupOptions
+    : STANDARD_SYRUPS
 
   const toggleSyrup = (syrup: string) => {
     setSyrups((prev) => {
@@ -233,8 +272,8 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
   const calculatePrice = (): string => {
     let final = discountResult.finalPrice
-    const sizeExtra = cupSize === "medium" ? 10 : cupSize === "large" ? 20 : 0
-    const syrupExtra = (noMilk || isTea ? 0 : syrups.length) * 10
+    const sizeExtra = customizations.size ? (cupSize === "medium" ? 10 : cupSize === "large" ? 20 : 0) : 0
+    const syrupExtra = customizations.syrup ? syrups.length * 10 : 0
     final += sizeExtra + syrupExtra
     return `${final} TL`
   }
@@ -243,12 +282,12 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     itemName: activeItemName,
     coffeeStrength,
     sugarLevel: sugarLevel[0],
-    shot: isTea ? "single" : shot,
-    milkType,
+    shot: customizations.shot ? shot : "single",
+    milkType: customizations.milk ? milkType : undefined,
     cupType,
-    cupSize,
-    syrups: isTea ? (teaAroma ? [teaAroma] : []) : noMilk ? [] : syrups,
-    chocolateType: !isTea && isMocha ? chocolateType : undefined,
+    cupSize: customizations.size ? cupSize : "small",
+    syrups: customizations.teaAroma ? (teaAroma ? [teaAroma] : []) : (customizations.syrup ? syrups : []),
+    chocolateType: customizations.chocolate ? chocolateType : undefined,
     status: "received",
     price: calculatePrice(),
     note: note.trim() || undefined,
@@ -267,7 +306,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     setShowConfirm(false)
   }
 
-  const coffeeImg = activeItemName ? getCoffeeImage(activeItemName) : undefined
+  const coffeeImg = activeItemName ? (getCoffeeImage(activeItemName) || activeItem?.imageUrl) : undefined
 
   return (
     <>
@@ -298,7 +337,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                 </h1>
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>
-                    {activeCampaignForItem ? (
+                    {activeCampaignForItem && activeCampaignForItem.discountPercent > 0 ? (
                       <>
                         <span className="line-through opacity-60">{basePriceNum} TL</span>
                         <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
@@ -326,7 +365,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
               </h1>
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>
-                  {activeCampaignForItem ? (
+                  {activeCampaignForItem && activeCampaignForItem.discountPercent > 0 ? (
                     <>
                       <span className="line-through opacity-60">{basePriceNum} TL</span>
                       <span className="text-primary font-semibold ml-1">{discountResult.finalPrice} TL</span>
@@ -345,57 +384,61 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
         <div className="space-y-6 pb-6">
           {/* Coffee Strength / Tea Brew Ratio */}
-          <Card className="p-6">
-            <Label className="text-base font-semibold text-foreground">
-              {isTea ? "Brew Ratio" : "Coffee Strength"}
-            </Label>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {isTea ? "Choose how strong the tea is brewed." : "How intense do you want it?"}
-            </p>
-            <div className="mt-4 flex gap-3">
-              {isTea ? (
-                <>
-                  <Button variant={coffeeStrength === "light" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("light")}>
-                    Light
-                  </Button>
-                  <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
-                    Balanced
-                  </Button>
-                  <Button variant={coffeeStrength === "dark" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("dark")}>
-                    Dark
-                  </Button>
-                </>
-              ) : (
-                <>
-                  <Button variant={coffeeStrength === "smooth" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("smooth")}>
-                    Smooth
-                  </Button>
-              <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
-                Balanced
-              </Button>
-              <Button variant={coffeeStrength === "strong" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("strong")}>
-                Strong
-              </Button>
-                </>
-              )}
-            </div>
-          </Card>
+          {customizations.strength && (
+            <Card className="p-6">
+              <Label className="text-base font-semibold text-foreground">
+                {customizations.teaAroma ? "Brew Ratio" : "Coffee Strength"}
+              </Label>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {customizations.teaAroma ? "Choose how strong the tea is brewed." : "How intense do you want it?"}
+              </p>
+              <div className="mt-4 flex gap-3">
+                {customizations.teaAroma ? (
+                  <>
+                    <Button variant={coffeeStrength === "light" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("light")}>
+                      Light
+                    </Button>
+                    <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
+                      Balanced
+                    </Button>
+                    <Button variant={coffeeStrength === "dark" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("dark")}>
+                      Dark
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <Button variant={coffeeStrength === "smooth" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("smooth")}>
+                      Smooth
+                    </Button>
+                <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
+                  Balanced
+                </Button>
+                <Button variant={coffeeStrength === "strong" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("strong")}>
+                  Strong
+                </Button>
+                  </>
+                )}
+              </div>
+            </Card>
+          )}
 
           {/* Sugar Level */}
-          <Card className="p-6">
-            <Label className="text-base font-semibold text-foreground">Sugar Level</Label>
-            <p className="mt-1 text-sm text-muted-foreground">Level: {sugarLevel[0]}/5</p>
-            <div className="mt-4">
-              <Slider value={sugarLevel} onValueChange={setSugarLevel} max={5} min={0} step={1} className="w-full" />
-            </div>
-            <div className="mt-2 flex justify-between text-xs text-muted-foreground">
-              <span>No Sugar</span>
-              <span>Extra Sweet</span>
-            </div>
-          </Card>
+          {customizations.sugar && (
+            <Card className="p-6">
+              <Label className="text-base font-semibold text-foreground">Sugar Level</Label>
+              <p className="mt-1 text-sm text-muted-foreground">Level: {sugarLevel[0]}/5</p>
+              <div className="mt-4">
+                <Slider value={sugarLevel} onValueChange={setSugarLevel} max={5} min={0} step={1} className="w-full" />
+              </div>
+              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+                <span>No Sugar</span>
+                <span>Extra Sweet</span>
+              </div>
+            </Card>
+          )}
 
           {/* Shot Type */}
-          {!isTea && (
+          {customizations.shot && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Espresso Shot</Label>
               <div className="mt-4 flex gap-3">
@@ -409,8 +452,8 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             </Card>
           )}
 
-          {/* Milk Type — Americano ve Espresso için gizle */}
-          {!noMilk && !isTea && (
+          {/* Milk Type */}
+          {customizations.milk && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Milk Type</Label>
               <div className="mt-4 flex gap-3">
@@ -428,17 +471,19 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           )}
 
           {/* Cup Size */}
-          <Card className="p-6">
-            <Label className="text-base font-semibold text-foreground">Cup Size</Label>
-            <p className="mt-1 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
-            <div className="mt-4 flex gap-3">
-              {(["small", "medium", "large"] as const).map((size) => (
-                <Button key={size} variant={cupSize === size ? "default" : "outline"} className="flex-1 capitalize" onClick={() => setCupSize(size)}>
-                  {size}
-                </Button>
-              ))}
-            </div>
-          </Card>
+          {customizations.size && (
+            <Card className="p-6">
+              <Label className="text-base font-semibold text-foreground">Cup Size</Label>
+              <p className="mt-1 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
+              <div className="mt-4 flex gap-3">
+                {(["small", "medium", "large"] as const).map((size) => (
+                  <Button key={size} variant={cupSize === size ? "default" : "outline"} className="flex-1 capitalize" onClick={() => setCupSize(size)}>
+                    {size}
+                  </Button>
+                ))}
+              </div>
+            </Card>
+          )}
 
           {/* Cup Type */}
           <Card className="p-6">
@@ -471,8 +516,8 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             </div>
           </Card>
 
-          {/* Chocolate Type — sadece Mocha için */}
-          {!isTea && isMocha && (
+          {/* Chocolate Type */}
+          {customizations.chocolate && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Chocolate Type</Label>
               <p className="mt-1 text-sm text-muted-foreground">Choose your chocolate</p>
@@ -490,8 +535,8 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
             </Card>
           )}
 
-          {/* Syrups — Americano ve Espresso için gizle */}
-          {!noMilk && !isTea && (
+          {/* Syrups */}
+          {customizations.syrup && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Add Syrups</Label>
               <p className="mt-1 text-sm text-muted-foreground">Max 2 syrups · +10 TL each {syrups.length >= 2 && <span className="ml-2 text-amber-500 font-medium">Max reached</span>}</p>
@@ -510,7 +555,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           )}
 
           {/* Aroma — Tea only */}
-          {isTea && (
+          {customizations.teaAroma && (
             <Card className="p-6">
               <Label className="text-base font-semibold text-foreground">Aroma</Label>
               <p className="mt-1 text-sm text-muted-foreground">Optional aroma selection</p>
@@ -553,33 +598,29 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           </Button>
 
           {/* Customer Reviews for this coffee */}
-          {(() => {
-            const itemReviews = orders.filter(
-              (o: Order) =>
-                o.rating &&
-                activeItemName &&
-                (o.itemName || "").toLowerCase() === activeItemName.toLowerCase()
-            )
-            if (itemReviews.length === 0) return null
-            const avg = itemReviews.reduce((sum: number, o: Order) => sum + (o.rating || 0), 0) / itemReviews.length
-            return (
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-foreground">Customer Reviews</h3>
-                  <div className="flex items-center gap-1">
-                    <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
-                    <span className="text-sm font-semibold text-foreground">{avg.toFixed(1)}</span>
-                    <span className="text-xs text-muted-foreground">({itemReviews.length})</span>
-                  </div>
+          {!reviewsLoading && itemReviews.length > 0 && (
+            <div className="space-y-3 pt-2">
+              <div className="flex items-center justify-between">
+                <h3 className="text-base font-semibold text-foreground">Customer Reviews</h3>
+                <div className="flex items-center gap-1">
+                  <Star className="h-4 w-4 fill-amber-400 text-amber-400" />
+                  <span className="text-sm font-semibold text-foreground">
+                    {(itemReviews.reduce((sum, o) => sum + (o.rating || 0), 0) / itemReviews.length).toFixed(1)}
+                  </span>
+                  <span className="text-xs text-muted-foreground">({itemReviews.length})</span>
                 </div>
-                {itemReviews.map((o) => {
-                  const sugarLabel = (v: number) => {
-                    if (v === 0) return "No Sugar"
-                    if (v <= 2) return `Sugar ${v}/5`
-                    if (v === 3) return "Medium Sweet"
-                    return `Sweet ${v}/5`
-                  }
-                  return (
+              </div>
+              {itemReviews.map((o) => {
+                const sugarLabel = (v: number) => {
+                  if (v === 0) return "No Sugar"
+                  if (v <= 2) return `Sugar ${v}/5`
+                  if (v === 3) return "Medium Sweet"
+                  return `Sweet ${v}/5`
+                }
+                const oCustomizations = menuItems.find(i => i.name === o.itemName)?.customizations || {
+                  strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false
+                }
+                return (
                   <Card key={o.id} className="p-4 space-y-2.5">
                     <div className="flex items-center justify-between">
                       <span className="text-sm font-medium text-foreground">{o.reviewerName || "Anonymous"}</span>
@@ -591,10 +632,12 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                     </div>
                     {/* Order customization details */}
                     <div className="flex flex-wrap gap-1.5">
-                      <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary capitalize">
-                        {isTeaItem(o.itemName) ? `${o.coffeeStrength} brew` : o.coffeeStrength}
-                      </span>
-                      {!isTeaItem(o.itemName) && (
+                      {oCustomizations.strength && (
+                        <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary capitalize">
+                          {oCustomizations.teaAroma ? `${o.coffeeStrength} brew` : o.coffeeStrength}
+                        </span>
+                      )}
+                      {oCustomizations.shot && (
                         <span className="inline-flex items-center rounded-md bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-700 dark:text-amber-400">
                           {o.shot} shot
                         </span>
@@ -602,22 +645,22 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                       <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
                         {sugarLabel(o.sugarLevel)}
                       </span>
-                      {o.milkType && !isNoMilkItem(o.itemName) && (
+                      {oCustomizations.milk && o.milkType && (
                         <span className="inline-flex items-center rounded-md bg-blue-500/10 px-2 py-0.5 text-[11px] font-medium text-blue-700 dark:text-blue-400 capitalize">
                           {o.milkType} milk
                         </span>
                       )}
-                      {isTeaItem(o.itemName) && o.syrups && o.syrups.length > 0 && (
+                      {oCustomizations.teaAroma && o.syrups && o.syrups.length > 0 && (
                         <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-2 py-0.5 text-[11px] font-medium text-emerald-700 dark:text-emerald-400">
                           {o.syrups[0]}
                         </span>
                       )}
-                      {!isTeaItem(o.itemName) && o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
+                      {oCustomizations.syrup && o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
                         <span key={s} className="inline-flex items-center rounded-md bg-purple-500/10 px-2 py-0.5 text-[11px] font-medium text-purple-700 dark:text-purple-400">
                           {s}
                         </span>
                       ))}
-                      {o.chocolateType && (
+                      {oCustomizations.chocolate && o.chocolateType && (
                         <span className="inline-flex items-center rounded-md bg-orange-500/10 px-2 py-0.5 text-[11px] font-medium text-orange-700 dark:text-orange-400 capitalize">
                           {o.chocolateType} chocolate
                         </span>
@@ -625,17 +668,16 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                     </div>
                     {o.review && <p className="text-sm text-muted-foreground">&ldquo;{o.review}&rdquo;</p>}
                   </Card>
-                  )
-                })}
-              </div>
-            )
-          })()}
+                )
+              })}
+            </div>
+          )}
         </div>
       </div>
 
       {/* Confirmation Popup */}
       {showConfirm && (
-        <OrderConfirmPopup order={buildOrder()} itemName={activeItemName || "Custom Coffee"} price={calculatePrice()} onConfirm={handleConfirm} onCancel={handleCancel} note={note.trim() || undefined} />
+        <OrderConfirmPopup order={buildOrder()} itemName={activeItemName || "Custom Coffee"} price={calculatePrice()} onConfirm={handleConfirm} onCancel={handleCancel} note={note.trim() || undefined} customizations={customizations} />
       )}
     </>
   )

@@ -27,6 +27,7 @@ import {
   Shield,
   KeyRound,
   CheckCircle2,
+  UtensilsCrossed,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -37,6 +38,8 @@ import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import type { CoffeeOfMonth } from "@/lib/types"
 import { getCoffeeImage } from "@/lib/coffee-images"
 import { DateInput } from "@/components/ui/date-input"
+import { MenuItemsManager } from "@/components/menu-items-manager"
+import { useMenuItems } from "@/hooks/use-menu-items"
 
 const BARISTA_PIN_KEY = "cc_barista_pin"
 
@@ -61,11 +64,18 @@ const sidebarItems: SidebarItem[] = [
   { id: "listoforders", label: "List of Orders", icon: List },
   { id: "campaign", label: "Create Campaign", icon: Megaphone },
   { id: "coffeemonth", label: "Coffee of the Month", icon: Coffee },
+  { id: "menuitems", label: "Menu Items", icon: UtensilsCrossed },
   { id: "account", label: "Barista Account", icon: UserCog },
 ]
 
 export default function BaristaPage() {
-  const { orders, broadcastUpdateStatus } = useBroadcastOrders({ observeBaristaPresence: false, mode: "barista" })
+  const [isAuthenticated, setIsAuthenticated] = useState(false)
+  const { menuItems } = useMenuItems()
+  const { orders, broadcastUpdateStatus } = useBroadcastOrders({ 
+    observeBaristaPresence: false, 
+    mode: "barista",
+    enabled: isAuthenticated
+  })
   const {
     campaigns,
     splashImageUrl,
@@ -76,7 +86,6 @@ export default function BaristaPage() {
   } = useBroadcastCampaigns()
   const { toast } = useToast()
   const [activeSection, setActiveSection] = useState("orders")
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [codeInput, setCodeInput] = useState("")
   const [showCode, setShowCode] = useState(false)
   const [codeError, setCodeError] = useState(false)
@@ -90,6 +99,8 @@ export default function BaristaPage() {
 
   // Customers state
   const [customerSearch, setCustomerSearch] = useState("")
+  const [customers, setCustomers] = useState<{ id: string; email: string; name: string; surname: string; loyalty_stamps: number }[]>([])
+  const [customersLoading, setCustomersLoading] = useState(false)
 
   // Barista Account — Change PIN state
   const [acAdminEmail, setAcAdminEmail] = useState("")
@@ -107,6 +118,20 @@ export default function BaristaPage() {
   const [comImageUrl, setComImageUrl] = useState<string | null>(null)
   const [comSaved, setComSaved] = useState(false)
   const comImageInputRef = useRef<HTMLInputElement>(null)
+
+  // Customers sekmesi aktif olunca Supabase'den profilleri yükle
+  useEffect(() => {
+    if (activeSection !== "users" || !isAuthenticated) return
+    setCustomersLoading(true)
+    supabase
+      .from("profiles")
+      .select("id, email, name, surname, loyalty_stamps")
+      .order("name", { ascending: true })
+      .then(({ data, error }) => {
+        if (!error && data) setCustomers(data)
+        setCustomersLoading(false)
+      })
+  }, [activeSection, isAuthenticated])
 
   useEffect(() => {
     const loadCoffeeOfMonth = async () => {
@@ -572,8 +597,9 @@ export default function BaristaPage() {
                         <div><span className="text-muted-foreground">Sugar:</span> {o.sugarLevel}/5</div>
                         <div><span className="text-muted-foreground">Cup:</span> <span className="capitalize">{o.cupType}</span></div>
                         {!isTea && <div><span className="text-muted-foreground">Shot:</span> <span className="capitalize">{o.shot}</span></div>}
+                        {o.note && <div><span className="text-muted-foreground">Note:</span> {o.note}</div>}
                         {isTea && o.syrups.length > 0 && <div><span className="text-muted-foreground">Aroma:</span> {o.syrups[0]}</div>}
-                        {o.price && <div className="col-span-2"><span className="text-muted-foreground">Price:</span> {o.price}</div>}
+                        {o.price && <div><span className="text-muted-foreground">Price:</span> {o.price}</div>}
                         <div className="col-span-2 flex items-center gap-2">
                           {o.rating ? (
                             <>
@@ -684,7 +710,8 @@ export default function BaristaPage() {
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {categories.map(([name, catOrds]) => {
-                      const coffeeImg = getCoffeeImage(name)
+                      const activeItem = menuItems.find(i => i.name === name)
+                      const coffeeImg = getCoffeeImage(name) || activeItem?.imageUrl
                       return (
                       <button
                         key={name}
@@ -813,10 +840,7 @@ export default function BaristaPage() {
         ) : activeSection === "users" ? (
           /* ── Customers Section ── */
           (() => {
-            const allUsers: { email: string; name: string; surname: string }[] = (() => {
-              try { return JSON.parse(localStorage.getItem("cc_users") || "[]") } catch { return [] }
-            })()
-            const filtered = allUsers.filter((u) => {
+            const filtered = customers.filter((u) => {
               const q = customerSearch.toLowerCase()
               return (
                 u.name.toLowerCase().includes(q) ||
@@ -830,7 +854,7 @@ export default function BaristaPage() {
                   <div>
                     <h1 className="text-2xl font-bold text-foreground">Customers</h1>
                     <p className="text-sm text-muted-foreground mt-0.5">
-                      Registered customer count: <span className="font-semibold text-foreground">{allUsers.length}</span>
+                      Registered customer count: <span className="font-semibold text-foreground">{customers.length}</span>
                     </p>
                   </div>
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
@@ -848,20 +872,33 @@ export default function BaristaPage() {
                   />
                 </div>
                 {/* Grid */}
-                {filtered.length === 0 ? (
+                {customersLoading ? (
+                  <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-20 text-center">
+                    <Users className="h-14 w-14 text-muted-foreground/30 mb-4 animate-pulse" />
+                    <p className="text-sm text-muted-foreground">Loading customers…</p>
+                  </div>
+                ) : filtered.length === 0 ? (
                   <div className="flex flex-col items-center justify-center rounded-xl border border-border bg-card py-20 text-center">
                     <Users className="h-14 w-14 text-muted-foreground/30 mb-4" />
-                    <p className="font-medium text-foreground">{allUsers.length === 0 ? "No registered customers yet" : "No results found"}</p>
+                    <p className="font-medium text-foreground">{customers.length === 0 ? "No registered customers yet" : "No results found"}</p>
                   </div>
                 ) : (
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {filtered.map((u) => (
-                      <div key={u.email} className="rounded-xl border border-border bg-card p-5 space-y-1">
-                        <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 mb-3">
-                          <span className="text-sm font-bold text-primary">{u.name[0]}{u.surname[0]}</span>
+                      <div key={u.id} className="rounded-xl border border-border bg-card p-5 space-y-2">
+                        <div className="flex items-center gap-3">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10 shrink-0">
+                            <span className="text-sm font-bold text-primary">{u.name[0]}{u.surname[0]}</span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-semibold text-foreground truncate">{u.name} {u.surname}</p>
+                            <p className="text-xs text-muted-foreground truncate">{u.email}</p>
+                          </div>
                         </div>
-                        <p className="font-semibold text-foreground">{u.name} {u.surname}</p>
-                        <p className="text-xs text-muted-foreground break-all">{u.email}</p>
+                        <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
+                          <span className="text-xs text-muted-foreground">Loyalty stamps:</span>
+                          <span className="text-xs font-bold text-primary">{u.loyalty_stamps ?? 0} / 10</span>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -970,6 +1007,9 @@ export default function BaristaPage() {
               </Button>
             </div>
           </div>
+        ) : activeSection === "menuitems" ? (
+          /* ── Menu Items Management ── */
+          <MenuItemsManager />
         ) : (
           /* ── Placeholder for other sections ── */
           <div className="flex flex-col items-center justify-center h-full min-h-[400px] text-center">

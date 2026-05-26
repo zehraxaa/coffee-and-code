@@ -5,11 +5,11 @@ import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Coffee, ArrowLeft } from "lucide-react"
+import { Coffee, ArrowLeft, Loader2 } from "lucide-react"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
-import { HOT_MENU_ITEMS, ICED_MENU_ITEMS, type MenuItem } from "@/lib/menu-items"
+import { useMenuItems } from "@/hooks/use-menu-items"
+import type { MenuItem } from "@/lib/menu-items"
 import { COFFEE_IMAGES } from "@/lib/coffee-images"
-
 
 interface MenuViewProps {
   onBack: () => void
@@ -20,31 +20,40 @@ interface MenuViewProps {
 
 export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCategoryChange }: MenuViewProps) {
   const { applyDiscount } = useBroadcastCampaigns()
+  const { menuItems, loading } = useMenuItems()
 
-  const hotMenuItems: MenuItem[] = HOT_MENU_ITEMS.map((item) => {
-    const discounted = applyDiscount(item.price, item.id)
-    return {
-      ...item,
-      originalPrice: item.price,
-      price: discounted.finalPrice,
-      discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
-    }
-  })
+  const hotMenuItems: MenuItem[] = menuItems
+    .filter((item) => item.category === "hot")
+    .map((item) => {
+      const discounted = applyDiscount(item.price, item.id)
+      return {
+        ...item,
+        originalPrice: item.price,
+        price: discounted.finalPrice,
+        discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
+      }
+    })
 
-  const icedMenuItems: MenuItem[] = ICED_MENU_ITEMS.map((item) => {
-    const discounted = applyDiscount(item.price, item.id)
-    return {
-      ...item,
-      originalPrice: item.price,
-      price: discounted.finalPrice,
-      discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
-    }
-  })
+  const icedMenuItems: MenuItem[] = menuItems
+    .filter((item) => item.category === "iced")
+    .map((item) => {
+      const discounted = applyDiscount(item.price, item.id)
+      return {
+        ...item,
+        originalPrice: item.price,
+        price: discounted.finalPrice,
+        discountPercent: discounted.discount > 0 ? Math.round((discounted.discount / item.price) * 100) : 0,
+      }
+    })
 
   const renderMenuItems = (items: MenuItem[]) => (
     <div className="grid grid-cols-2 gap-4 pb-6 mt-6">
       {items.map((item) => {
-        const itemImage = COFFEE_IMAGES[item.id]
+        // Prefer DB image_url, then COFFEE_IMAGES map by id, then name slug
+        const itemImage =
+          item.imageUrl ||
+          COFFEE_IMAGES[item.id] ||
+          COFFEE_IMAGES[item.name.toLowerCase().replace(/\s+/g, "-")]
         return (
           <Card key={item.id} className="flex flex-col p-4 text-center border-border/50">
             <div className="mb-3 flex justify-center">
@@ -116,21 +125,27 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
         </div>
       </div>
 
-      {/* Menu Items */}
-      <Tabs value={selectedCategory} onValueChange={(val) => onCategoryChange?.(val)} className="w-full">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="hot">Hot Drinks</TabsTrigger>
-          <TabsTrigger value="iced">Ice Drinks</TabsTrigger>
-        </TabsList>
+      {/* Loading */}
+      {loading ? (
+        <div className="flex items-center justify-center py-24">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      ) : (
+        <Tabs value={selectedCategory} onValueChange={(val) => onCategoryChange?.(val)} className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="hot">Hot Drinks</TabsTrigger>
+            <TabsTrigger value="iced">Ice Drinks</TabsTrigger>
+          </TabsList>
 
-        <TabsContent value="hot">
-          {renderMenuItems(hotMenuItems)}
-        </TabsContent>
+          <TabsContent value="hot">
+            {renderMenuItems(hotMenuItems)}
+          </TabsContent>
 
-        <TabsContent value="iced">
-          {renderMenuItems(icedMenuItems)}
-        </TabsContent>
-      </Tabs>
+          <TabsContent value="iced">
+            {renderMenuItems(icedMenuItems)}
+          </TabsContent>
+        </Tabs>
+      )}
     </div>
   )
 }

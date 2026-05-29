@@ -23,7 +23,7 @@ import {
   UploadCloud,
   AlignLeft,
 } from "lucide-react"
-import { ALL_MENU_ITEMS } from "@/lib/menu-items"
+import { useMenuItems } from "@/hooks/use-menu-items"
 import type { Campaign } from "@/lib/types"
 import { DateInput } from "@/components/ui/date-input"
 import Image from "next/image"
@@ -71,6 +71,7 @@ export function CampaignForm({
   splashImageUrl,
   onUpdateSplashImage,
 }: CampaignFormProps) {
+  const { menuItems } = useMenuItems()
   // Campaign form state
   const [title, setTitle] = useState("")
   const [details, setDetails] = useState("")
@@ -271,7 +272,7 @@ export function CampaignForm({
                     {c.applicableItemIds.includes("all")
                       ? "All items"
                       : c.applicableItemIds
-                          .map((id) => ALL_MENU_ITEMS.find((m) => m.id === id)?.name ?? id)
+                          .map((id) => menuItems.find((m) => m.id === id)?.name ?? id)
                           .join(", ")}
                   </p>
                   <div className="flex items-center gap-1 text-xs text-muted-foreground">
@@ -486,7 +487,7 @@ export function CampaignForm({
           {!selectedItemIds.includes("all") && (
             <div className="space-y-1">
               <p className="text-xs text-muted-foreground mb-2">Hot Drinks</p>
-              {ALL_MENU_ITEMS.filter((m) => m.category === "hot").map((item) => (
+              {menuItems.filter((m) => m.category === "hot").map((item) => (
                 <button
                   key={item.id}
                   type="button"
@@ -508,7 +509,7 @@ export function CampaignForm({
               ))}
 
               <p className="text-xs text-muted-foreground mt-3 mb-2">Iced Drinks</p>
-              {ALL_MENU_ITEMS.filter((m) => m.category === "iced").map((item) => (
+              {menuItems.filter((m) => m.category === "iced").map((item) => (
                 <button
                   key={item.id}
                   type="button"

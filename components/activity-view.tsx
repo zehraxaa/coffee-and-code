@@ -71,7 +71,7 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
 
   const renderOrderCard = (order: Order, index: number) => {
     const activeItem = menuItems.find(i => i.name === order.itemName)
-    const coffeeImg = getCoffeeImage(order.itemName || "") || activeItem?.imageUrl
+    const coffeeImg = activeItem?.imageUrl || getCoffeeImage(order.itemName || "")
     return (
     <motion.div
       key={order.id}

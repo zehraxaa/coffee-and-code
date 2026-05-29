@@ -330,7 +330,16 @@ export default function Home() {
               }}
               loyaltyStamps={loyaltyStamps}
               freeCoffeeCode={freeCoffeeCode}
-              onRedeemFreeCoffee={() => { setFreeCoffeeCode(null); setLoyaltyStamps(0) }}
+              onRedeemFreeCoffee={async () => {
+                setFreeCoffeeCode(null)
+                setLoyaltyStamps(0)
+                if (loggedInUser?.id) {
+                  const { error } = await supabase.from('profiles').update({ loyalty_stamps: 0 }).eq('id', loggedInUser.id)
+                  if (error) {
+                    console.error("Failed to reset stamps in database:", error)
+                  }
+                }
+              }}
               onOrderCoffeeOfMonth={(name, price) => {
                 setSelectedMenuItem({ name, price })
                 setPrefillOrder(null)

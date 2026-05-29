@@ -41,16 +41,9 @@ import { DateInput } from "@/components/ui/date-input"
 import { MenuItemsManager } from "@/components/menu-items-manager"
 import { useMenuItems } from "@/hooks/use-menu-items"
 
-const BARISTA_PIN_KEY = "cc_barista_pin"
-
-// Yetkili yönetici bilgileri (hardcoded — sadece bu kişi PIN değiştirebilir)
-const ADMIN_EMAIL = "aysezehraaydogdu@gmail.com"
-const ADMIN_SECURITY_CODE = "1q2w3e"
-
-function getBaristaPin(): string {
-  if (typeof window === "undefined") return "1234"
-  return localStorage.getItem(BARISTA_PIN_KEY) || "1234"
-}
+// These will now be fetched from the database, but we keep the fallback
+const FALLBACK_ADMIN_EMAIL = "aysezehraaydogdu@gmail.com"
+const FALLBACK_SECURITY_CODE = "1q2w3e"
 
 type SidebarItem = {
   id: string
@@ -118,6 +111,25 @@ export default function BaristaPage() {
   const [comImageUrl, setComImageUrl] = useState<string | null>(null)
   const [comSaved, setComSaved] = useState(false)
   const comImageInputRef = useRef<HTMLInputElement>(null)
+  // Database Barista Settings
+  const [dbBaristaPin, setDbBaristaPin] = useState("1234")
+  const [dbAdminEmail, setDbAdminEmail] = useState(FALLBACK_ADMIN_EMAIL)
+  const [dbSecurityCode, setDbSecurityCode] = useState(FALLBACK_SECURITY_CODE)
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
+
+  // Load barista settings from DB
+  useEffect(() => {
+    const fetchSettings = async () => {
+      const { data, error } = await supabase.from("barista_setting").select("*").limit(1).maybeSingle()
+      if (data && !error) {
+        if (data.barista_pin) setDbBaristaPin(data.barista_pin)
+        if (data.admin_mail) setDbAdminEmail(data.admin_mail)
+        if (data.security_code) setDbSecurityCode(data.security_code)
+      }
+      setSettingsLoaded(true)
+    }
+    fetchSettings()
+  }, [])
 
   // Customers sekmesi aktif olunca Supabase'den profilleri yükle
   useEffect(() => {
@@ -210,7 +222,8 @@ export default function BaristaPage() {
   }, [isAuthenticated])
 
   const handleLogin = () => {
-    if (codeInput === getBaristaPin()) {
+    if (!settingsLoaded) return // Wait for settings to load
+    if (codeInput === dbBaristaPin) {
       window.dispatchEvent(new Event("barista-audio-unlock"))
       setIsAuthenticated(true)
       setCodeError(false)
@@ -221,13 +234,13 @@ export default function BaristaPage() {
     }
   }
 
-  const handleChangeBaristaPin = () => {
+  const handleChangeBaristaPin = async () => {
     setAcError("")
-    if (acAdminEmail.trim().toLowerCase() !== ADMIN_EMAIL) {
-      setAcError("Admin email address is incoreect!")
+    if (acAdminEmail.trim().toLowerCase() !== dbAdminEmail.toLowerCase()) {
+      setAcError("Admin email address is incorrect!")
       return
     }
-    if (acSecurityCode.trim() !== ADMIN_SECURITY_CODE) {
+    if (acSecurityCode.trim() !== dbSecurityCode) {
       setAcError("Security code is incorrect!")
       return
     }
@@ -239,7 +252,20 @@ export default function BaristaPage() {
       setAcError("PINs do not match!")
       return
     }
-    localStorage.setItem(BARISTA_PIN_KEY, acNewPin.trim())
+
+    const { error } = await supabase.from("barista_setting").upsert({
+      id: 1,
+      barista_pin: acNewPin.trim(),
+      admin_mail: dbAdminEmail,
+      security_code: dbSecurityCode
+    })
+
+    if (error) {
+      setAcError("Failed to save PIN to database: " + error.message)
+      return
+    }
+
+    setDbBaristaPin(acNewPin.trim())
     setAcPinSaved(true)
     setAcAdminEmail("")
     setAcSecurityCode("")
@@ -711,7 +737,7 @@ export default function BaristaPage() {
                   <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
                     {categories.map(([name, catOrds]) => {
                       const activeItem = menuItems.find(i => i.name === name)
-                      const coffeeImg = getCoffeeImage(name) || activeItem?.imageUrl
+                      const coffeeImg = activeItem?.imageUrl || getCoffeeImage(name)
                       return (
                       <button
                         key={name}

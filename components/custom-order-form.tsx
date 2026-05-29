@@ -306,7 +306,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
     setShowConfirm(false)
   }
 
-  const coffeeImg = activeItemName ? (getCoffeeImage(activeItemName) || activeItem?.imageUrl) : undefined
+  const coffeeImg = activeItemName ? (activeItem?.imageUrl || getCoffeeImage(activeItemName)) : undefined
 
   return (
     <>

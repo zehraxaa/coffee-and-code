@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef, useSyncExternalStore } from "react"
+import { useState, useCallback, useSyncExternalStore } from "react"
 import type { Campaign } from "@/lib/types"
 import { supabase } from "@/lib/supabase"
 
@@ -97,23 +97,20 @@ async function initStore() {
     .subscribe()
 }
 
+// Start fetching immediately when module is imported (not after React mounts)
+if (typeof window !== "undefined") {
+  initStore()
+}
+
 // ── Hook ─────────────────────────────────────────────────────────
 export function useBroadcastCampaigns() {
-  // Kick off initialization once
-  const initRef = useRef(false)
-  useEffect(() => {
-    if (!initRef.current) {
-      initRef.current = true
-      initStore()
-    }
-  }, [])
 
   // Subscribe to store updates
   const campaigns = useSyncExternalStore(subscribe, getCampaignsSnapshot, getCampaignsSnapshot)
   const splashImageUrl = useSyncExternalStore(subscribe, getSplashSnapshot, getSplashSnapshot)
   const loading = useSyncExternalStore(subscribe, getLoadingSnapshot, getLoadingSnapshot)
 
-  /** Verilen item ID'sine uygulanan aktif kampanyayı döner (zaman aralığı kontrolü dahil) */
+  /** Verilen item ID'sine uygulanan aktif kampanyayı döner */
   const getActiveCampaignForItem = useCallback(
     (itemId: string): Campaign | undefined => {
       const now = new Date()
@@ -127,20 +124,10 @@ export function useBroadcastCampaigns() {
           c.applicableItemIds.includes("all")
         if (!itemMatch) return false
 
-        // Tarih + saat aralığı kontrolü
+        // Tarih aralığı kontrolü (gün bazında)
         if (c.startDate && c.endDate) {
           const todayStr = now.toISOString().split("T")[0] // "YYYY-MM-DD"
           if (todayStr < c.startDate || todayStr > c.endDate) return false
-
-          // Saat aralığı
-          if (c.startTime && c.endTime) {
-            const currentMinutes = now.getHours() * 60 + now.getMinutes()
-            const [sh, sm] = c.startTime.split(":").map(Number)
-            const [eh, em] = c.endTime.split(":").map(Number)
-            const startMinutes = sh * 60 + sm
-            const endMinutes = eh * 60 + em
-            if (currentMinutes < startMinutes || currentMinutes > endMinutes) return false
-          }
         }
 
         return true

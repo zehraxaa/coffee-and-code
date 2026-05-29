@@ -222,19 +222,19 @@ export function HomeView({
 
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-center justify-center py-4">
+        <div className="flex items-center justify-center  pt-0 pb-0">
           <Image
             src="/images/bir-20ba-c5-9fl-c4-b1k-20ekleyin-282-29.png"
             alt="Coffee & Code Logo"
             width={200}
             height={200}
             priority
-            className="h-auto w-48 rounded-2xl"
+            className="h-auto w-44 rounded-2xl"
           />
         </div>
 
         {/* Loyalty Card */}
-        <Card className="overflow-hidden bg-gradient-to-br from-primary to-accent p-6">
+        <Card className="overflow-hidden bg-gradient-to-br from-primary to-accent p-5 max-h-[200px] mx-auto w-full">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-primary-foreground/80">Loyalty Rewards</p>

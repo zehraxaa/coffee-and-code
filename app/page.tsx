@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { useState, useEffect, useRef } from "react"
 import { useBroadcastOrders } from "@/hooks/use-broadcast-orders"
 import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
+import { useMenuItems } from "@/hooks/use-menu-items"
 import { getNextOrderNumber } from "@/lib/order-number"
 import { SplashScreen } from "@/components/splash-screen"
 import { BottomNavigation } from "@/components/bottom-navigation"
@@ -31,7 +32,8 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("home")
   const [hasSeenPromo, setHasSeenPromo] = useState(false)
   const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
-  const { campaigns, splashImageUrl } = useBroadcastCampaigns()
+  const { campaigns, splashImageUrl, loading: campaignsLoading } = useBroadcastCampaigns()
+  const { loading: menuLoading } = useMenuItems()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState<StoredUser | null>(null)
@@ -296,7 +298,7 @@ export default function Home() {
   // Render
   // ────────────────────────────────────────────
   if (showSplash) {
-    return <SplashScreen onComplete={() => setShowSplash(false)} />
+    return <SplashScreen onComplete={() => setShowSplash(false)} isReady={!campaignsLoading && !menuLoading} />
   }
 
   if (baristaMode) {

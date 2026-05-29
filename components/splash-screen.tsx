@@ -7,18 +7,26 @@ import { useMemo, useState, useEffect } from "react"
 
 interface SplashScreenProps {
   onComplete: () => void
+  isReady?: boolean
 }
 
-export function SplashScreen({ onComplete }: SplashScreenProps) {
+export function SplashScreen({ onComplete, isReady = true }: SplashScreenProps) {
   const [mounted, setMounted] = useState(false)
+  const [animationDone, setAnimationDone] = useState(false)
 
   useEffect(() => {
     setMounted(true)
   }, [])
 
+  useEffect(() => {
+    if (animationDone && isReady) {
+      onComplete()
+    }
+  }, [animationDone, isReady, onComplete])
+
   const handleAnimationComplete = () => {
     setTimeout(() => {
-      onComplete()
+      setAnimationDone(true)
     }, 3500)
   }
 

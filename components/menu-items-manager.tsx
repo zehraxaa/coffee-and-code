@@ -31,6 +31,7 @@ interface ItemForm {
   description: string
   price: string
   popular: boolean
+  isNew: boolean
   category: "hot" | "iced"
   imageUrl: string
   customizations: {
@@ -52,6 +53,7 @@ const DEFAULT_FORM: ItemForm = {
   description: "",
   price: "100",
   popular: false,
+  isNew: false,
   category: "hot",
   imageUrl: "",
   customizations: {
@@ -93,6 +95,7 @@ export function MenuItemsManager() {
       description: item.description,
       price: String(item.price),
       popular: item.popular ?? false,
+      isNew: item.isNew ?? false,
       category: item.category,
       imageUrl: item.imageUrl ?? "",
       customizations: item.customizations || DEFAULT_FORM.customizations,
@@ -134,6 +137,7 @@ export function MenuItemsManager() {
           description: form.description.trim(),
           price: priceNum,
           popular: form.popular,
+          isNew: form.isNew,
           category: form.category,
           imageUrl: form.imageUrl || undefined,
           customizations: form.customizations,
@@ -145,6 +149,7 @@ export function MenuItemsManager() {
           description: form.description.trim(),
           price: priceNum,
           popular: form.popular,
+          isNew: form.isNew,
           category: form.category,
           imageUrl: form.imageUrl || undefined,
           customizations: form.customizations,
@@ -225,6 +230,9 @@ export function MenuItemsManager() {
             <p className="font-semibold text-foreground text-sm">{item.name}</p>
             {item.popular && (
               <Badge variant="secondary" className="text-[10px] h-4">Popular</Badge>
+            )}
+            {item.isNew && (
+              <Badge className="text-[10px] h-4 bg-emerald-500 hover:bg-emerald-500 text-white">New</Badge>
             )}
           </div>
           <p className="text-xs text-muted-foreground mt-0.5 line-clamp-1">{item.description}</p>
@@ -451,6 +459,17 @@ export function MenuItemsManager() {
                   className="h-4 w-4 rounded border-border accent-primary"
                 />
                 <span className="text-sm font-medium text-foreground">Mark as Popular ⭐</span>
+              </label>
+
+              {/* New */}
+              <label className="flex items-center gap-3 p-3 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  checked={form.isNew}
+                  onChange={(e) => setForm((f) => ({ ...f, isNew: e.target.checked }))}
+                  className="h-4 w-4 rounded border-border accent-emerald-500"
+                />
+                <span className="text-sm font-medium text-foreground">Mark as New 🆕</span>
               </label>
 
               {/* Customizations */}

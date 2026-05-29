@@ -31,7 +31,7 @@ export default function Home() {
   const [activeTab, setActiveTab] = useState("home")
   const [hasSeenPromo, setHasSeenPromo] = useState(false)
   const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
-  const { campaigns } = useBroadcastCampaigns()
+  const { campaigns, splashImageUrl } = useBroadcastCampaigns()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState<StoredUser | null>(null)
@@ -196,13 +196,13 @@ export default function Home() {
             localStorage.setItem(stampedKey, "1")
             setLoyaltyStamps((s) => {
               const next = s + 1
-              const finalStamps = next >= 10 ? 10 : next
+              const finalStamps = next >= 8 ? 8 : next
               
               // Veritabanını güncelle
               supabase.from('profiles').update({ loyalty_stamps: finalStamps }).eq('id', loggedInUser.id).then()
               
               setTimeout(() => {
-                if (next >= 10) {
+                if (next >= 8) {
                   const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
                   setFreeCoffeeCode(code)
                   toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
@@ -350,7 +350,8 @@ export default function Home() {
                 handleMenuItemSelect(item)
               }}
               campaigns={campaigns}
-              orders={orders}
+              orders={orders.filter((o) => !o.isGuest || o.id === selectedOrderId)}
+              splashImageUrl={splashImageUrl}
             />
           )}
           {activeTab === "order" && (

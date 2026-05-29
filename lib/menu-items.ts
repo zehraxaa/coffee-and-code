@@ -18,6 +18,7 @@ export interface MenuItem {
   description: string
   price: number
   popular?: boolean
+  isNew?: boolean
   category: "hot" | "iced"
   /** URL from Supabase image_url or local /images/ path */
   imageUrl?: string

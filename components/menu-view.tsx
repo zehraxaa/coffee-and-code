@@ -82,6 +82,13 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
                   </Badge>
                 </div>
               )}
+              {item.isNew && (
+                <div className="my-1">
+                  <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-500 text-white">
+                    New
+                  </Badge>
+                </div>
+              )}
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
               <div className="mt-auto pt-3">
                 <div className="flex items-center justify-center gap-2 mb-2">

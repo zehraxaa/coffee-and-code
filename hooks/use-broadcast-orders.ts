@@ -275,20 +275,23 @@ export function useBroadcastOrders({
       if (error) {
         console.error("Error inserting order:", error.message || error)
       } else {
-        if (!isBaristaOnlineRef.current) {
-          fetch("/api/notify-barista", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ order }),
-          })
-            .then(async (response) => {
-              if (!response.ok) {
-                const body = await response.text()
-                console.error("Error sending email notification:", response.status, body)
-              }
+        // Give presence state 2 seconds to sync, then decide whether to email
+        setTimeout(() => {
+          if (!isBaristaOnlineRef.current) {
+            fetch("/api/notify-barista", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ order }),
             })
-            .catch((err) => console.error("Error sending email notification:", err))
-        }
+              .then(async (response) => {
+                if (!response.ok) {
+                  const body = await response.text()
+                  console.error("Error sending email notification:", response.status, body)
+                }
+              })
+              .catch((err) => console.error("Error sending email notification:", err))
+          }
+        }, 2000)
       }
     },
     []

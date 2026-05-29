@@ -33,6 +33,7 @@ interface HomeViewProps {
   onOrderFavorite: (item: { name: string; price: string }) => void
   campaigns?: Campaign[]
   orders?: Order[]
+  splashImageUrl?: string | null
 }
 
 export function HomeView({
@@ -46,18 +47,10 @@ export function HomeView({
   onOrderFavorite,
   campaigns = [],
   orders = [],
+  splashImageUrl,
 }: HomeViewProps) {
-  const totalStamps = 10
+  const totalStamps = 8
   const [currentCampaign, setCurrentCampaign] = useState(0)
-  const [promoImageUrl, setPromoImageUrl] = useState<string | null>(null)
-
-  // Load barista-set promo image
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem(PROMO_STORAGE_KEY)
-      if (stored) setPromoImageUrl(stored)
-    } catch { /* ignore */ }
-  }, [])
 
   // Load barista-set coffee of the month
   const [coffeeOfMonth, setCoffeeOfMonth] = useState<CoffeeOfMonth>(DEFAULT_COFFEE)
@@ -215,7 +208,7 @@ export function HomeView({
               </Button>
               <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
                 <Image
-                  src={promoImageUrl ?? "/images/spanish-latte-promo-v2.jpg"}
+                  src={splashImageUrl ?? "/images/spanish-latte-promo-v2.jpg"}
                   alt="Coffee of the Month Promo"
                   fill
                   className="object-cover"
@@ -263,7 +256,7 @@ export function HomeView({
             ))}
           </div>
           <p className="mt-3 text-xs text-primary-foreground/80">
-            {loyaltyStamps >= 10
+            {loyaltyStamps >= 8
               ? "🎉 Free coffee earned! Redeem below."
               : `${totalStamps - loyaltyStamps} more stamps for a free drink!`}
           </p>

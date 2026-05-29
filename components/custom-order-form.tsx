@@ -335,6 +335,9 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                 <h1 className="text-2xl font-bold text-foreground">
                   {activeItemName ? `Customize ${activeItemName}` : "Custom Order"}
                 </h1>
+                {activeItem?.description && (
+                  <p className="text-sm text-muted-foreground mt-0.5 mb-1">{activeItem.description}</p>
+                )}
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">
                   <span>
                     {activeCampaignForItem && activeCampaignForItem.discountPercent > 0 ? (
@@ -363,6 +366,9 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
               <h1 className="text-2xl font-bold text-foreground">
                 {activeItemName ? `Customize ${activeItemName}` : "Custom Order"}
               </h1>
+              {activeItem?.description && (
+                <p className="text-sm text-muted-foreground mt-0.5 mb-1">{activeItem.description}</p>
+              )}
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <span>
                   {activeCampaignForItem && activeCampaignForItem.discountPercent > 0 ? (

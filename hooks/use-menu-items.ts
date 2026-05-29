@@ -19,6 +19,7 @@ function mapRow(row: Record<string, unknown>): MenuItem {
     description: (row.description as string) || "",
     price: row.price as number,
     popular: (row.popular as boolean) ?? false,
+    isNew: (row.is_new as boolean) ?? false,
     category: (row.category as "hot" | "iced") || "hot",
     imageUrl: (row.image_url as string) || undefined,
     sortOrder: (row.sort_order as number) ?? 0,
@@ -39,6 +40,12 @@ export function useMenuItems() {
   const reorderingRef = useRef(false)
 
   useEffect(() => {
+    // Skip fetch if cache is already warm — instant render
+    if (cachedMenuItems) {
+      setMenuItems(cachedMenuItems)
+      setLoading(false)
+    }
+
     const fetchAndSeed = async () => {
       const { data, error } = await supabase
         .from("menu_items")
@@ -133,6 +140,7 @@ export function useMenuItems() {
         description: item.description,
         price: item.price,
         popular: item.popular ?? false,
+        is_new: item.isNew ?? false,
         category: item.category,
         image_url: item.imageUrl || null,
         sort_order: maxOrder + 1,
@@ -156,6 +164,7 @@ export function useMenuItems() {
       if (updates.description !== undefined) patch.description = updates.description
       if (updates.price !== undefined) patch.price = updates.price
       if (updates.popular !== undefined) patch.popular = updates.popular
+      if (updates.isNew !== undefined) patch.is_new = updates.isNew
       if (updates.category !== undefined) patch.category = updates.category
       if (updates.sortOrder !== undefined) patch.sort_order = updates.sortOrder
       if (updates.customizations !== undefined) patch.customizations = updates.customizations

@@ -280,15 +280,21 @@ export default function BaristaPage() {
   }
 
   // Sound notification for new orders
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
   useEffect(() => {
     if (typeof window === "undefined") return
 
-    const notificationAudio = new Audio("/sounds/new-order.mp3")
-    notificationAudio.preload = "auto"
-    notificationAudio.volume = 0.85
+    // Create audio once and reuse it
+    if (!audioRef.current) {
+      const audio = new Audio("/sounds/new-order.mp3")
+      audio.preload = "auto"
+      audio.volume = 0.85
+      audioRef.current = audio
+    }
 
     const unlockAudio = () => {
-      notificationAudio.load()
+      audioRef.current?.load()
     }
 
     window.addEventListener("pointerdown", unlockAudio, { once: false })
@@ -296,8 +302,17 @@ export default function BaristaPage() {
     window.addEventListener("barista-audio-unlock", unlockAudio)
 
     const playSound = () => {
-      notificationAudio.currentTime = 0
-      notificationAudio.play().catch((e) => console.warn("Audio playback failed:", e))
+      if (!audioRef.current) return
+      audioRef.current.currentTime = 0
+      audioRef.current.play().catch((e) => console.warn("Audio playback failed:", e))
+    }
+
+    if (!isAuthenticated) {
+      return () => {
+        window.removeEventListener("pointerdown", unlockAudio)
+        window.removeEventListener("keydown", unlockAudio)
+        window.removeEventListener("barista-audio-unlock", unlockAudio)
+      }
     }
 
     const channelId = crypto.randomUUID()
@@ -316,9 +331,8 @@ export default function BaristaPage() {
       window.removeEventListener("pointerdown", unlockAudio)
       window.removeEventListener("keydown", unlockAudio)
       window.removeEventListener("barista-audio-unlock", unlockAudio)
-      notificationAudio.pause()
     }
-  }, [])
+  }, [isAuthenticated])
 
   const handleUpdateOrderStatus = (orderId: string, status: OrderStatus) => {
     broadcastUpdateStatus(orderId, status)
@@ -524,10 +538,19 @@ export default function BaristaPage() {
                               if (v === 3) return "Medium Sweet"
                               return `Sweet ${v}/5`
                             }
-                            const noMilk = ["americano", "espresso", "iced americano", "cold brew"].some(
-                              (n) => (o.itemName || "").toLowerCase().includes(n)
+                            // Look up the actual menu item's customization settings
+                            const menuItem = menuItems.find(
+                              (m) => m.name.toLowerCase() === (o.itemName || "").toLowerCase()
                             )
+                            const c = menuItem?.customizations
+                            // Fallbacks if item not found (e.g. old deleted item)
                             const isTea = (o.itemName || "").toLowerCase() === "tea"
+                            const showShot = c ? c.shot : !isTea
+                            const showMilk = c ? c.milk : !isTea
+                            const showChocolate = c ? c.chocolate : false
+                            const showSyrup = c ? c.syrup : !isTea
+                            const showStrength = c ? c.strength : true
+                            const isTeaAroma = c ? c.teaAroma : isTea
                             return (
                               <div key={o.id} className="border-t border-border/50 pt-2 space-y-1.5">
                                 <div className="flex items-center justify-between">
@@ -539,10 +562,12 @@ export default function BaristaPage() {
                                   </div>
                                 </div>
                                 <div className="flex flex-wrap gap-1">
-                                  <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary capitalize">
-                                    {isTea ? `${o.coffeeStrength} brew` : o.coffeeStrength}
-                                  </span>
-                                  {!isTea && (
+                                  {showStrength && (
+                                    <span className="inline-flex items-center rounded-md bg-primary/10 px-1.5 py-0.5 text-[10px] font-medium text-primary capitalize">
+                                      {isTeaAroma ? `${o.coffeeStrength} brew` : o.coffeeStrength}
+                                    </span>
+                                  )}
+                                  {showShot && (
                                     <span className="inline-flex items-center rounded-md bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-700 dark:text-amber-400">
                                       {o.shot} shot
                                     </span>
@@ -550,22 +575,22 @@ export default function BaristaPage() {
                                   <span className="inline-flex items-center rounded-md bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
                                     {sugarLabel(o.sugarLevel)}
                                   </span>
-                                  {o.milkType && !noMilk && !isTea && (
+                                  {showMilk && o.milkType && (
                                     <span className="inline-flex items-center rounded-md bg-blue-500/10 px-1.5 py-0.5 text-[10px] font-medium text-blue-700 dark:text-blue-400 capitalize">
                                       {o.milkType} milk
                                     </span>
                                   )}
-                                  {isTea && o.syrups && o.syrups.length > 0 && (
+                                  {isTeaAroma && o.syrups && o.syrups.length > 0 && (
                                     <span className="inline-flex items-center rounded-md bg-emerald-500/10 px-1.5 py-0.5 text-[10px] font-medium text-emerald-700 dark:text-emerald-400">
                                       {o.syrups[0]}
                                     </span>
                                   )}
-                                  {!isTea && o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
+                                  {showSyrup && !isTeaAroma && o.syrups && o.syrups.length > 0 && o.syrups.map((s) => (
                                     <span key={s} className="inline-flex items-center rounded-md bg-purple-500/10 px-1.5 py-0.5 text-[10px] font-medium text-purple-700 dark:text-purple-400">
                                       {s}
                                     </span>
                                   ))}
-                                  {o.chocolateType && !isTea && (
+                                  {showChocolate && o.chocolateType && (
                                     <span className="inline-flex items-center rounded-md bg-orange-500/10 px-1.5 py-0.5 text-[10px] font-medium text-orange-700 dark:text-orange-400 capitalize">
                                       {o.chocolateType} choc.
                                     </span>

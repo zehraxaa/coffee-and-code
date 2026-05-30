@@ -190,31 +190,26 @@ export default function Home() {
         setOrderReadyNotificationOpen(true)
       }
 
-      if (order.status === "completed" && prev !== "completed") {
+      if (order.status === "completed" && prev !== undefined && prev !== "completed") {
+        // App açıktayken sipariş completed durumuna geçerse:
         if (!order.isGuest && loggedInUser) {
-          // Daha önce bu siparişe stamp verilmişse tekrar verme
-          const stampedKey = `cc_stamped_${order.id}`
-          if (!localStorage.getItem(stampedKey)) {
-            localStorage.setItem(stampedKey, "1")
-            setLoyaltyStamps((s) => {
-              const next = s + 1
-              const finalStamps = next >= 8 ? 8 : next
-              
-              // Veritabanını güncelle
-              supabase.from('profiles').update({ loyalty_stamps: finalStamps }).eq('id', loggedInUser.id).then()
-              
-              setTimeout(() => {
-                if (next >= 8) {
-                  const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
-                  setFreeCoffeeCode(code)
-                  toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
-                } else {
-                  toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
-                }
-              }, 0)
-              return finalStamps
-            })
-          }
+          setLoyaltyStamps((s) => {
+            const next = s + 1
+            const finalStamps = next >= 8 ? 8 : next
+            
+            // Veritabanı güncellemesi artık Barista client (use-broadcast-orders.ts) tarafından yapılıyor.
+            // Sadece UI optimistik güncellemesi ve toast mesajı:
+            setTimeout(() => {
+              if (next >= 8) {
+                const code = `FREE-${Math.random().toString(36).substring(2, 6).toUpperCase()}`
+                setFreeCoffeeCode(code)
+                toast({ title: "🎉 Free Coffee Earned!", description: "Your coupon is waiting in the home screen!", duration: 5000 })
+              } else {
+                toast({ title: "Stamp Earned! ☕", description: `You now have ${next} stamp${next > 1 ? "s" : ""}!` })
+              }
+            }, 0)
+            return finalStamps
+          })
         }
       }
 

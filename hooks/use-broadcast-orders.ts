@@ -299,7 +299,27 @@ export function useBroadcastOrders({
 
   // ── Sipariş durumunu güncelle ──────────────────────────────────────
   const broadcastUpdateStatus = useCallback(async (orderId: string, status: OrderStatus) => {
-    setOrders((prev) => prev.map((o) => (o.id === orderId ? { ...o, status } : o)))
+    // Find the order before updating local state
+    setOrders((prev) => {
+      const order = prev.find(o => o.id === orderId)
+      
+      // Eğer sipariş 'completed' yapılıyorsa ve kayıtlı kullanıcı siparişiyse (Barista işlemi)
+      if (status === "completed" && order && !order.isGuest && order.userId) {
+        // Barista, kullanıcının stamp sayısını veritabanında günceller.
+        // Bu sayede müşteri uygulamayı aç-kapa yapsa bile stamp'i kalıcı olur ve mükerrer stamp verilmez.
+        supabase.from('profiles').select('loyalty_stamps').eq('id', order.userId).single()
+          .then(({ data: profile }) => {
+            if (profile) {
+              const next = (profile.loyalty_stamps || 0) + 1
+              const finalStamps = next >= 8 ? 8 : next
+              supabase.from('profiles').update({ loyalty_stamps: finalStamps }).eq('id', order.userId).then()
+            }
+          })
+      }
+
+      return prev.map((o) => (o.id === orderId ? { ...o, status } : o))
+    })
+
     const { error } = await supabase.from("orders").update({ status }).eq("id", orderId)
     if (error) console.error("Error updating order status:", error.message || error)
   }, [])

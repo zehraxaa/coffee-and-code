@@ -113,13 +113,13 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note, 
               </div>
             )}
             {customizations.teaAroma && order.syrups && order.syrups.length > 0 && (
-              <div className="p-2 rounded-lg bg-muted/50 col-span-2">
+              <div className="p-2 rounded-lg bg-muted/50">
                 <p className="text-[10px] text-muted-foreground mb-0.5">Aroma</p>
                 <p className="font-medium text-foreground text-xs">{order.syrups[0]}</p>
               </div>
             )}
             {customizations.syrup && order.syrups && order.syrups.length > 0 && (
-              <div className="p-2 rounded-lg bg-muted/50 col-span-2">
+              <div className="p-2 rounded-lg bg-muted/50">
                 <p className="text-[10px] text-muted-foreground mb-0.5">Syrups</p>
                 <p className="font-medium text-foreground text-xs">{order.syrups.join(", ")}</p>
               </div>
@@ -128,9 +128,9 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note, 
 
           {/* Note */}
           {note && (
-            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20 col-span-2">
               <p className="text-[10px] text-muted-foreground mb-0.5">Note</p>
-              <p className="text-xs font-medium text-foreground">{note}</p>
+              <p className="text-xs font-medium text-foreground break-all">{note}</p>
             </div>
           )}
 

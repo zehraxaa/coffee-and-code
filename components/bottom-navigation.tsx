@@ -18,8 +18,8 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
   ]
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card pb-safe">
-      <div className="flex items-center justify-around px-2 py-2">
+    <nav className="fixed bottom-0 left-0 right-0 z-40 border-t border-border bg-card pb-safe h-16">
+      <div className="flex items-center justify-around px-2 py-1">
         {navItems.map((item) => {
           const Icon = item.icon
           const isActive = activeTab === item.id
@@ -29,7 +29,7 @@ export function BottomNavigation({ activeTab, onTabChange }: BottomNavigationPro
               <button
                 key={item.id}
                 onClick={() => onTabChange(item.id)}
-                className="relative -top-5 flex h-16 w-16 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
+                className="relative -top-0.5 flex h-15 w-15 flex-col items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg transition-transform hover:scale-105"
               >
                 <Icon size={28} />
                 <span className="mt-1 text-[10px] font-bold">{item.label}</span>

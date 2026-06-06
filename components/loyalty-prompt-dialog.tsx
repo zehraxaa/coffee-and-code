@@ -39,13 +39,13 @@ export function LoyaltyPromptDialog({ open, onSignIn, onSkip }: LoyaltyPromptDia
           <h2 className="text-xl font-bold text-foreground">Earn a Stamp!</h2>
           <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
             Would you like to sign in to earn a stamp for this order?
-            Collect <span className="font-semibold text-foreground">10 stamps</span> and get a{" "}
+            Collect <span className="font-semibold text-foreground">8 stamps</span> and get a{" "}
             <span className="font-semibold text-primary">free coffee</span>!
           </p>
 
           {/* Stamp preview */}
           <div className="mt-4 flex justify-center gap-1.5">
-            {Array.from({ length: 10 }).map((_, i) => (
+            {Array.from({ length: 8 }).map((_, i) => (
               <div
                 key={i}
                 className={`h-5 w-5 rounded-full border-2 flex items-center justify-center transition-all ${

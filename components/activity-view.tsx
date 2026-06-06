@@ -150,6 +150,11 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
                     <span className="font-medium text-foreground">Syrups:</span> {order.syrups.join(", ")}
                   </p>
                 )}
+                {order.note && (
+                  <p className="text-muted-foreground">
+                    <span className="font-medium text-foreground">Note:</span> {order.note}
+                  </p>
+                )}
               </div>
             </div>
           </div>

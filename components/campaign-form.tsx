@@ -82,6 +82,7 @@ export function CampaignForm({
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [discountPercent, setDiscountPercent] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -89,6 +90,7 @@ export function CampaignForm({
 
   // Promo popup image state
   const [promoPreview, setPromoPreview] = useState<string | null>(splashImageUrl ?? null)
+  const [promoFile, setPromoFile] = useState<File | null>(null)
   const [promoSuccess, setPromoSuccess] = useState(false)
   const promoFileRef = useRef<HTMLInputElement>(null)
 
@@ -110,22 +112,46 @@ export function CampaignForm({
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setImagePreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    setImageFile(file)
+    const url = URL.createObjectURL(file)
+    setImagePreview(url)
   }
 
   const handlePromoImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => setPromoPreview(ev.target?.result as string)
-    reader.readAsDataURL(file)
+    setPromoFile(file)
+    const url = URL.createObjectURL(file)
+    setPromoPreview(url)
   }
 
-  const handleSavePromo = () => {
+  const handleSavePromo = async () => {
+    let finalUrl = promoPreview
+
+    if (promoFile) {
+      try {
+        const formData = new FormData()
+        formData.append('file', promoFile)
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (data.secure_url) {
+          finalUrl = data.secure_url
+        } else {
+          console.error("Promo image upload failed:", data.error)
+          return
+        }
+      } catch (err) {
+        console.error("Promo image upload error:", err)
+        return
+      }
+    }
+
     if (onUpdateSplashImage) {
-      onUpdateSplashImage(promoPreview)
+      onUpdateSplashImage(finalUrl)
       setPromoSuccess(true)
       setTimeout(() => setPromoSuccess(false), 3000)
     }
@@ -133,6 +159,7 @@ export function CampaignForm({
 
   const handleRemovePromo = () => {
     setPromoPreview(null)
+    setPromoFile(null)
     if (promoFileRef.current) promoFileRef.current.value = ""
     if (onUpdateSplashImage) onUpdateSplashImage(null)
   }
@@ -155,8 +182,33 @@ export function CampaignForm({
     return Object.keys(errs).length === 0
   }
 
-  const handleCreate = () => {
+  const handleCreate = async () => {
     if (!validate()) return
+
+    let finalImageUrl = imagePreview
+
+    if (imageFile) {
+      try {
+        const formData = new FormData()
+        formData.append('file', imageFile)
+        
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (data.secure_url) {
+          finalImageUrl = data.secure_url
+        } else {
+          setErrors(prev => ({ ...prev, image: "Failed to upload image" }))
+          return
+        }
+      } catch (err) {
+        setErrors(prev => ({ ...prev, image: "Image upload error" }))
+        return
+      }
+    }
+
     const expiresAt = new Date(`${endDate}T${endTime || "23:59"}`).toISOString()
     const campaign: Campaign = {
       id: editingId || crypto.randomUUID(),
@@ -169,7 +221,7 @@ export function CampaignForm({
       endTime,
       applicableItemIds: selectedItemIds,
       discountPercent: discountPercent.trim() === "" ? 0 : parseFloat(discountPercent),
-      imageUrl: imagePreview ?? undefined,
+      imageUrl: finalImageUrl ?? undefined,
       createdAt: editingId ? (campaigns.find(c => c.id === editingId)?.createdAt || new Date().toISOString()) : new Date().toISOString(),
     }
 
@@ -194,6 +246,7 @@ export function CampaignForm({
     setSelectedItemIds([])
     setDiscountPercent("")
     setImagePreview(null)
+    setImageFile(null)
     setErrors({})
     setEditingId(null)
     if (fileInputRef.current) fileInputRef.current.value = ""
@@ -210,6 +263,7 @@ export function CampaignForm({
     setSelectedItemIds(c.applicableItemIds)
     setDiscountPercent(c.discountPercent === 0 ? "" : c.discountPercent.toString())
     setImagePreview(c.imageUrl || null)
+    setImageFile(null)
     setErrors({})
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
@@ -555,6 +609,7 @@ export function CampaignForm({
                 type="button"
                 onClick={() => {
                   setImagePreview(null)
+                  setImageFile(null)
                   if (fileInputRef.current) fileInputRef.current.value = ""
                 }}
                 className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-background/80 hover:bg-background border border-border transition-colors"

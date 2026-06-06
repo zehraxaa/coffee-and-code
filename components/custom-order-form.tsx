@@ -50,103 +50,103 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note, 
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
 
       {/* Popup */}
-      <div className="relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300">
+      <div className="relative z-10 w-full max-w-md rounded-t-3xl sm:rounded-3xl bg-card border border-border shadow-2xl overflow-hidden animate-in slide-in-from-bottom-4 duration-300 max-h-[90dvh] flex flex-col">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-border/50">
+        <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-border/50 shrink-0">
           <div>
-            <h2 className="text-xl font-bold text-foreground">Order Summary</h2>
-            <p className="text-sm text-muted-foreground">Please review your order</p>
+            <h2 className="text-lg font-bold text-foreground">Order Summary</h2>
+            <p className="text-xs text-muted-foreground">Please review your order</p>
           </div>
           <button onClick={onCancel} className="flex h-8 w-8 items-center justify-center rounded-full bg-muted hover:bg-muted/80 transition-colors">
             <X className="h-4 w-4 text-muted-foreground" />
           </button>
         </div>
 
-        {/* Order details */}
-        <div className="px-6 py-4 space-y-3">
+        {/* Scrollable order details */}
+        <div className="overflow-y-auto flex-1 px-5 py-3 space-y-2">
           {/* Coffee name */}
-          <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/10">
-            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/20">
-              <Coffee className="h-5 w-5 text-primary" />
+          <div className="flex items-center gap-3 p-2.5 rounded-xl bg-primary/10">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/20">
+              <Coffee className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <p className="font-semibold text-foreground">{itemName}</p>
+              <p className="font-semibold text-foreground text-sm">{itemName}</p>
               <p className="text-xs text-muted-foreground">
                 {customizations.shot ? `${order.shot} shot` : "Beverage"}
               </p>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2 text-sm">
+          <div className="grid grid-cols-2 gap-1.5 text-sm">
             {customizations.strength && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">{customizations.teaAroma ? "Brew Ratio" : "Strength"}</p>
-                <p className="font-medium text-foreground capitalize">{order.coffeeStrength}</p>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <p className="text-[10px] text-muted-foreground mb-0.5">{customizations.teaAroma ? "Brew Ratio" : "Strength"}</p>
+                <p className="font-medium text-foreground capitalize text-xs">{order.coffeeStrength}</p>
               </div>
             )}
             {customizations.sugar && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Sugar</p>
-                <p className="font-medium text-foreground">{order.sugarLevel}/5 · {sugarLabel(order.sugarLevel)}</p>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Sugar</p>
+                <p className="font-medium text-foreground text-xs">{order.sugarLevel}/5</p>
               </div>
             )}
-            <div className="p-3 rounded-xl bg-muted/50">
-              <p className="text-xs text-muted-foreground mb-1">Cup Type</p>
-              <p className="font-medium text-foreground capitalize">{order.cupType}</p>
+            <div className="p-2 rounded-lg bg-muted/50">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Cup Type</p>
+              <p className="font-medium text-foreground capitalize text-xs">{order.cupType}</p>
             </div>
             {customizations.size && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Cup Size</p>
-                <p className="font-medium text-foreground capitalize">{order.cupSize}</p>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Cup Size</p>
+                <p className="font-medium text-foreground capitalize text-xs">{order.cupSize}</p>
               </div>
             )}
             {customizations.milk && order.milkType && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Milk</p>
-                <p className="font-medium text-foreground capitalize">{order.milkType}</p>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Milk</p>
+                <p className="font-medium text-foreground capitalize text-xs">{order.milkType}</p>
               </div>
             )}
             {customizations.chocolate && order.chocolateType && (
-              <div className="p-3 rounded-xl bg-muted/50">
-                <p className="text-xs text-muted-foreground mb-1">Chocolate</p>
-                <p className="font-medium text-foreground capitalize">{order.chocolateType}</p>
+              <div className="p-2 rounded-lg bg-muted/50">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Chocolate</p>
+                <p className="font-medium text-foreground capitalize text-xs">{order.chocolateType}</p>
               </div>
             )}
             {customizations.teaAroma && order.syrups && order.syrups.length > 0 && (
-              <div className="p-3 rounded-xl bg-muted/50 col-span-2">
-                <p className="text-xs text-muted-foreground mb-1">Aroma</p>
-                <p className="font-medium text-foreground">{order.syrups[0]}</p>
+              <div className="p-2 rounded-lg bg-muted/50 col-span-2">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Aroma</p>
+                <p className="font-medium text-foreground text-xs">{order.syrups[0]}</p>
               </div>
             )}
             {customizations.syrup && order.syrups && order.syrups.length > 0 && (
-              <div className="p-3 rounded-xl bg-muted/50 col-span-2">
-                <p className="text-xs text-muted-foreground mb-1">Syrups</p>
-                <p className="font-medium text-foreground">{order.syrups.join(", ")}</p>
+              <div className="p-2 rounded-lg bg-muted/50 col-span-2">
+                <p className="text-[10px] text-muted-foreground mb-0.5">Syrups</p>
+                <p className="font-medium text-foreground text-xs">{order.syrups.join(", ")}</p>
               </div>
             )}
           </div>
 
           {/* Note */}
           {note && (
-            <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
-              <p className="text-xs text-muted-foreground mb-1">📝 Note</p>
-              <p className="text-sm font-medium text-foreground">{note}</p>
+            <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
+              <p className="text-[10px] text-muted-foreground mb-0.5">Note</p>
+              <p className="text-xs font-medium text-foreground">{note}</p>
             </div>
           )}
 
           {/* Price */}
-          <div className="flex items-center justify-between p-4 rounded-xl bg-primary/5 border border-primary/20">
-            <span className="font-semibold text-foreground">Total</span>
-            <span className="text-2xl font-bold text-primary">{price}</span>
+          <div className="flex items-center justify-between p-3 rounded-xl bg-primary/5 border border-primary/20">
+            <span className="font-semibold text-foreground text-sm">Total</span>
+            <span className="text-xl font-bold text-primary">{price}</span>
           </div>
         </div>
 
         {/* Buttons */}
-        <div className="flex gap-3 px-6 pb-6">
-          <Button variant="outline" className="flex-1 border-border text-foreground" onClick={onCancel}>
+        <div className="flex gap-3 px-5 pb-5 shrink-0">
+          <Button variant="outline" className="flex-1 border-border text-foreground h-10" onClick={onCancel}>
             Cancel
           </Button>
-          <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90" onClick={onConfirm}>
+          <Button className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 h-10" onClick={onConfirm}>
             <Coffee className="mr-2 h-4 w-4" />
             Confirm Order
           </Button>
@@ -159,11 +159,11 @@ function OrderConfirmPopup({ order, itemName, price, onConfirm, onCancel, note, 
 export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders = [], prefillOrder }: CustomOrderFormProps) {
   const { applyDiscount } = useBroadcastCampaigns()
   const { menuItems } = useMenuItems()
-  
+
   const activeItemName = prefillOrder?.itemName || preselectedItem?.name
   const activeItem = menuItems.find((i) => i.name === activeItemName)
   const isIced = activeItem?.category === "iced"
-  
+
   const customizations = activeItem?.customizations || {
     strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false
   }
@@ -248,13 +248,17 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
       const numeric = parseInt(prefillOrder.price.replace(/[^0-9]/g, ""), 10)
       return isNaN(numeric) ? 100 : numeric
     }
+    // Prefer the live DB/static menu item price — it's always the original (un-discounted) price.
+    // preselectedItem.price may come from callers that already applied a discount (e.g. home-view fallback).
+    if (activeItem?.price) return activeItem.price
     if (!preselectedItem) return 100
     const numeric = parseInt(preselectedItem.price.replace(/[^0-9]/g, ""), 10)
     return isNaN(numeric) ? 100 : numeric
   }
 
   const basePriceNum = getBasePrice()
-  const itemId = activeItemName ? getMenuItemIdByName(activeItemName) : undefined
+  // activeItem?.id is preferred — it works for both static and DB-fetched items
+  const itemId = activeItem?.id ?? (activeItemName ? getMenuItemIdByName(activeItemName) : undefined)
   const discountResult = itemId
     ? applyDiscount(basePriceNum, itemId)
     : { finalPrice: basePriceNum, discount: 0, campaign: undefined }
@@ -388,17 +392,17 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           </div>
         )}
 
-        <div className="space-y-6 pb-6">
+        <div className="space-y-3 pb 4 mt-3">
           {/* Coffee Strength / Tea Brew Ratio */}
           {customizations.strength && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">
                 {customizations.teaAroma ? "Brew Ratio" : "Coffee Strength"}
               </Label>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-2 text-sm text-muted-foreground">
                 {customizations.teaAroma ? "Choose how strong the tea is brewed." : "How intense do you want it?"}
               </p>
-              <div className="mt-4 flex gap-3">
+              <div className="mt-3 flex gap-3">
                 {customizations.teaAroma ? (
                   <>
                     <Button variant={coffeeStrength === "light" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("light")}>
@@ -416,12 +420,12 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
                     <Button variant={coffeeStrength === "smooth" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("smooth")}>
                       Smooth
                     </Button>
-                <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
-                  Balanced
-                </Button>
-                <Button variant={coffeeStrength === "strong" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("strong")}>
-                  Strong
-                </Button>
+                    <Button variant={coffeeStrength === "balanced" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("balanced")}>
+                      Balanced
+                    </Button>
+                    <Button variant={coffeeStrength === "strong" ? "default" : "outline"} className="flex-1" onClick={() => setCoffeeStrength("strong")}>
+                      Strong
+                    </Button>
                   </>
                 )}
               </div>
@@ -430,13 +434,13 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Sugar Level */}
           {customizations.sugar && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Sugar Level</Label>
-              <p className="mt-1 text-sm text-muted-foreground">Level: {sugarLevel[0]}/5</p>
-              <div className="mt-4">
+              <p className="mt-2 text-sm text-muted-foreground">Level: {sugarLevel[0]}/5</p>
+              <div className="mt-3">
                 <Slider value={sugarLevel} onValueChange={setSugarLevel} max={5} min={0} step={1} className="w-full" />
               </div>
-              <div className="mt-2 flex justify-between text-xs text-muted-foreground">
+              <div className="mt-3 flex justify-between text-xs text-muted-foreground">
                 <span>No Sugar</span>
                 <span>Extra Sweet</span>
               </div>
@@ -445,7 +449,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Shot Type */}
           {customizations.shot && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Espresso Shot</Label>
               <div className="mt-4 flex gap-3">
                 <Button variant={shot === "single" ? "default" : "outline"} className="flex-1" onClick={() => setShot("single")}>
@@ -460,7 +464,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Milk Type */}
           {customizations.milk && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Milk Type</Label>
               <div className="mt-4 flex gap-3">
                 <Button variant={milkType === "whole" ? "default" : "outline"} className="flex-1" onClick={() => setMilkType("whole")}>
@@ -478,9 +482,9 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Cup Size */}
           {customizations.size && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Cup Size</Label>
-              <p className="mt-1 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
+              <p className="mt-2 text-sm text-muted-foreground">Medium: +10 TL, Large: +20 TL</p>
               <div className="mt-4 flex gap-3">
                 {(["small", "medium", "large"] as const).map((size) => (
                   <Button key={size} variant={cupSize === size ? "default" : "outline"} className="flex-1 capitalize" onClick={() => setCupSize(size)}>
@@ -492,7 +496,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           )}
 
           {/* Cup Type */}
-          <Card className="p-6">
+          <Card className="px-6 py-4">
             <Label className="text-base font-semibold text-foreground">Cup Type</Label>
             <div className="mt-4 flex gap-3">
               {isIced ? (
@@ -524,10 +528,10 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Chocolate Type */}
           {customizations.chocolate && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Chocolate Type</Label>
-              <p className="mt-1 text-sm text-muted-foreground">Choose your chocolate</p>
-              <div className="mt-4 flex gap-3">
+              <p className="mt-3 text-sm text-muted-foreground">Choose your chocolate</p>
+              <div className="mt-3 flex gap-3">
                 <Button variant={chocolateType === "white" ? "default" : "outline"} className="flex-1" onClick={() => setChocolateType("white")}>
                   White
                 </Button>
@@ -543,10 +547,10 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Syrups */}
           {customizations.syrup && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Add Syrups</Label>
               <p className="mt-1 text-sm text-muted-foreground">Max 2 syrups · +10 TL each {syrups.length >= 2 && <span className="ml-2 text-amber-500 font-medium">Max reached</span>}</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {availableSyrups.map((syrup) => {
                   const isSelected = syrups.includes(syrup)
                   const isDisabled = !isSelected && syrups.length >= 2
@@ -562,10 +566,10 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
 
           {/* Aroma — Tea only */}
           {customizations.teaAroma && (
-            <Card className="p-6">
+            <Card className="px-6 py-4">
               <Label className="text-base font-semibold text-foreground">Aroma</Label>
               <p className="mt-1 text-sm text-muted-foreground">Optional aroma selection</p>
-              <div className="mt-4 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2">
                 {TEA_AROMAS.map((aroma) => {
                   const isSelected = teaAroma === aroma
                   return (
@@ -584,7 +588,7 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           )}
 
           {/* Add Note */}
-          <Card className="p-6">
+          <Card className="px-6 py-4">
             <Label htmlFor="order-note" className="text-base font-semibold text-foreground">Add Note</Label>
             <p className="mt-1 text-sm text-muted-foreground">Any special requests?</p>
             <textarea
@@ -593,15 +597,14 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. extra hot, no foam, allergen info…"
               rows={3}
+              maxLength={200}
               className="mt-3 w-full resize-none rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/40"
             />
+            <p className={`mt-1 text-right text-xs ${note.length >= 190 ? "text-destructive font-medium" : "text-muted-foreground"}`}>
+              {note.length}/200
+            </p>
           </Card>
 
-          {/* Place Order Button */}
-          <Button size="lg" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" onClick={handlePlaceOrderClick}>
-            <Coffee className="mr-2 h-5 w-5" />
-            Place Order
-          </Button>
 
           {/* Customer Reviews for this coffee */}
           {!reviewsLoading && itemReviews.length > 0 && (
@@ -680,6 +683,16 @@ export function CustomOrderForm({ onBack, onPlaceOrder, preselectedItem, orders 
           )}
         </div>
       </div>
+
+      {/* Floating Place Order Button — bottom-right above nav */}
+      <button
+        onClick={handlePlaceOrderClick}
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 rounded-full bg-primary text-primary-foreground shadow-xl hover:bg-primary/90 active:scale-95 transition-all px-5 h-12"
+        aria-label="Place Order"
+      >
+        <Coffee className="h-5 w-5 shrink-0" />
+        <span className="text-sm font-semibold whitespace-nowrap">Place Order</span>
+      </button>
 
       {/* Confirmation Popup */}
       {showConfirm && (

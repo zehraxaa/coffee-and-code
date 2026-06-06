@@ -275,7 +275,7 @@ export function HomeView({
                   <p className="text-xs text-green-600 dark:text-green-400">Show this code to the barista</p>
                 </div>
               </div>
-              <div className="rounded-lg bg-white dark:bg-black/30 border border-green-300 px-4 py-3 text-center mb-3">
+              <div className="rounded-lg bg-white dark:bg-black/20 border border-green-300 px-4 py-3 text-center mb-3">
                 <span className="font-mono text-2xl font-bold tracking-widest text-green-700 dark:text-green-300">
                   {freeCoffeeCode}
                 </span>
@@ -321,7 +321,7 @@ export function HomeView({
                               fill
                               className="object-cover rounded-2xl"
                             />
-                            <div className="absolute inset-0 bg-black/50 rounded-2xl" />
+                            <div className="absolute inset-0 bg-black/20 rounded-2xl" />
                           </div>
                         )}
                         <div className="relative z-10">
@@ -378,7 +378,8 @@ export function HomeView({
                     </div>
                   </div>
                   <Button
-                    className="w-full mt-3 bg-white text-foreground hover:bg-white/90"
+                    className="w-full mt-3 text-black hover:opacity-90"
+                    style={{ backgroundColor: "#f3ede9" }}
                     onClick={() => {
                       const menuItem = ALL_MENU_ITEMS.find(
                         (m) => m.name.toLowerCase() === coffeeOfMonth.name.toLowerCase()

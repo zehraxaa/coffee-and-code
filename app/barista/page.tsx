@@ -515,7 +515,7 @@ export default function BaristaPage() {
                     <p className="font-medium text-foreground">No ratings yet</p>
                   </div>
                 ) : (
-                  <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  <div className="grid gap-1 sm:grid-cols-2 xl:grid-cols-3">
                     {grouped.map((g) => (
                       <div key={g.name} className="rounded-xl border border-border bg-card p-5 space-y-3">
                         <div className="flex items-center justify-between">
@@ -649,7 +649,8 @@ export default function BaristaPage() {
                         <div><span className="text-muted-foreground">Cup:</span> <span className="capitalize">{o.cupType}</span></div>
                         {!isTea && <div><span className="text-muted-foreground">Shot:</span> <span className="capitalize">{o.shot}</span></div>}
                         {o.note && <div><span className="text-muted-foreground">Note:</span> {o.note}</div>}
-                        {isTea && o.syrups.length > 0 && <div><span className="text-muted-foreground">Aroma:</span> {o.syrups[0]}</div>}
+                        {isTea && o.syrups && o.syrups.length > 0 && <div><span className="text-muted-foreground">Aroma:</span> {o.syrups[0]}</div>}
+                        {!isTea && o.syrups && o.syrups.length > 0 && <div><span className="text-muted-foreground">Syrup:</span> {o.syrups.join(", ")}</div>}
                         {o.price && <div><span className="text-muted-foreground">Price:</span> {o.price}</div>}
                         <div className="col-span-2 flex items-center gap-2">
                           {o.rating ? (
@@ -948,7 +949,7 @@ export default function BaristaPage() {
                         </div>
                         <div className="flex items-center gap-1.5 pt-1 border-t border-border/50">
                           <span className="text-xs text-muted-foreground">Loyalty stamps:</span>
-                          <span className="text-xs font-bold text-primary">{u.loyalty_stamps ?? 0} / 10</span>
+                          <span className="text-xs font-bold text-primary">{u.loyalty_stamps ?? 0} / 8</span>
                         </div>
                       </div>
                     ))}

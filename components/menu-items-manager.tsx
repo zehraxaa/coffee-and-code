@@ -76,6 +76,7 @@ export function MenuItemsManager() {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [reorderingId, setReorderingId] = useState<string | null>(null)
   const [formError, setFormError] = useState<string | null>(null)
+  const [imageFile, setImageFile] = useState<File | null>(null)
   const imageInputRef = useRef<HTMLInputElement>(null)
 
   const hotItems = menuItems.filter((i) => i.category === "hot")
@@ -85,6 +86,7 @@ export function MenuItemsManager() {
     setForm(DEFAULT_FORM)
     setEditingId(null)
     setFormError(null)
+    setImageFile(null)
     setShowForm(true)
   }
 
@@ -102,6 +104,7 @@ export function MenuItemsManager() {
     })
     setEditingId(item.id)
     setFormError(null)
+    setImageFile(null)
     setShowForm(true)
   }
 
@@ -109,17 +112,16 @@ export function MenuItemsManager() {
     setShowForm(false)
     setEditingId(null)
     setFormError(null)
+    setImageFile(null)
     setForm(DEFAULT_FORM)
   }
 
   function handleImageFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     if (!file) return
-    const reader = new FileReader()
-    reader.onload = (ev) => {
-      setForm((f) => ({ ...f, imageUrl: ev.target?.result as string }))
-    }
-    reader.readAsDataURL(file)
+    setImageFile(file)
+    const url = URL.createObjectURL(file)
+    setForm((f) => ({ ...f, imageUrl: url }))
   }
 
   async function handleSave() {
@@ -131,6 +133,24 @@ export function MenuItemsManager() {
     setSaving(true)
     setFormError(null)
     try {
+      let finalImageUrl = form.imageUrl
+
+      if (imageFile) {
+        const formData = new FormData()
+        formData.append('file', imageFile)
+
+        const res = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        })
+        const data = await res.json()
+        if (data.secure_url) {
+          finalImageUrl = data.secure_url
+        } else {
+          throw new Error(data.error || 'Failed to upload image')
+        }
+      }
+
       if (editingId) {
         await updateMenuItem(editingId, {
           name: form.name.trim(),
@@ -139,7 +159,7 @@ export function MenuItemsManager() {
           popular: form.popular,
           isNew: form.isNew,
           category: form.category,
-          imageUrl: form.imageUrl || undefined,
+          imageUrl: finalImageUrl || undefined,
           customizations: form.customizations,
         })
       } else {
@@ -151,7 +171,7 @@ export function MenuItemsManager() {
           popular: form.popular,
           isNew: form.isNew,
           category: form.category,
-          imageUrl: form.imageUrl || undefined,
+          imageUrl: finalImageUrl || undefined,
           customizations: form.customizations,
         })
       }
@@ -442,7 +462,10 @@ export function MenuItemsManager() {
                 {form.imageUrl && (
                   <button
                     type="button"
-                    onClick={() => setForm((f) => ({ ...f, imageUrl: "" }))}
+                    onClick={() => {
+                      setForm((f) => ({ ...f, imageUrl: "" }))
+                      setImageFile(null)
+                    }}
                     className="text-xs text-destructive hover:underline"
                   >
                     Remove image

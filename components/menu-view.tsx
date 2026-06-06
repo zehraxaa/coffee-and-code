@@ -47,7 +47,7 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
     })
 
   const renderMenuItems = (items: MenuItem[]) => (
-    <div className="grid grid-cols-2 gap-4 pb-6 mt-6">
+    <div className="grid grid-cols-2 gap-4 pb-4 mt-4">
       {items.map((item) => {
         // Prefer DB image_url, then COFFEE_IMAGES map by id, then name slug
         const itemImage =
@@ -55,21 +55,25 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
           COFFEE_IMAGES[item.id] ||
           COFFEE_IMAGES[item.name.toLowerCase().replace(/\s+/g, "-")]
         return (
-          <Card key={item.id} className="flex flex-col p-4 text-center border-border/50">
+          <Card 
+            key={item.id} 
+            className="flex flex-col p-4 text-center border-border/50 cursor-pointer hover:border-primary/50 hover:shadow-md transition-all active:scale-[0.98] h-full"
+            onClick={() => onSelectItem({ name: item.name, price: `${item.originalPrice ?? item.price} TL` })}
+          >
             <div className="mb-3 flex justify-center">
               {itemImage ? (
-                <div className="h-16 w-16 rounded-full overflow-hidden border-2 border-primary/20">
+                <div className="h-20 w-20 rounded-full overflow-hidden border-2 border-primary/20">
                   <Image
                     src={itemImage}
                     alt={item.name}
-                    width={64}
-                    height={64}
+                    width={80}
+                    height={80}
                     className="h-full w-full object-cover"
                   />
                 </div>
               ) : (
-                <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted">
-                  <Coffee className="h-8 w-8 text-muted-foreground" />
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-muted">
+                  <Coffee className="h-10 w-10 text-muted-foreground" />
                 </div>
               )}
             </div>
@@ -91,23 +95,22 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
               )}
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
               <div className="mt-auto pt-3">
-                <div className="flex items-center justify-center gap-2 mb-2">
+                <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">
                   {item.discountPercent && item.discountPercent > 0 ? (
                     <>
-                      <span className="text-xs line-through text-muted-foreground">{item.originalPrice} TL</span>
-                      <span className="text-lg font-bold text-destructive">{item.price} TL</span>
-                      <Badge variant="destructive" className="text-[10px]">
+                      <span className="text-xs line-through text-muted-foreground whitespace-nowrap">{item.originalPrice} TL</span>
+                      <span className="text-lg font-bold text-destructive whitespace-nowrap">{item.price} TL</span>
+                      <Badge variant="destructive" className="text-[10px] shrink-0">
                         -{item.discountPercent}%
                       </Badge>
                     </>
                   ) : (
-                    <span className="text-lg font-bold text-primary">{item.price} TL</span>
+                    <span className="text-lg font-bold text-primary whitespace-nowrap">{item.price} TL</span>
                   )}
                 </div>
                 <Button
                   size="sm"
-                  className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={() => onSelectItem({ name: item.name, price: `${item.price} TL` })}
+                  className="w-full bg-primary text-primary-foreground pointer-events-none"
                 >
                   Order
                 </Button>

@@ -33,7 +33,7 @@ export default function Home() {
   const [hasSeenPromo, setHasSeenPromo] = useState(false)
   const { orders, broadcastPlaceOrder, broadcastUpdateStatus, broadcastRateOrder } = useBroadcastOrders()
   const { campaigns, splashImageUrl, loading: campaignsLoading } = useBroadcastCampaigns()
-  const { loading: menuLoading } = useMenuItems()
+  const { menuItems, loading: menuLoading } = useMenuItems()
   const [baristaMode, setBaristaMode] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState<StoredUser | null>(null)
@@ -148,6 +148,14 @@ export default function Home() {
   }
 
   const handleReorder = (order: Order) => {
+    // Check if the item still exists in the menu
+    const itemExists = menuItems.some(
+      (item) => item.name.toLowerCase() === (order.itemName || "").toLowerCase()
+    )
+    if (!itemExists) {
+      toast({ title: "Something went wrong :(", description: "This item is no longer available on the menu.", variant: "destructive" })
+      return
+    }
     setPrefillOrder(order)
     setSelectedMenuItem(null)
     setActiveTab("order")

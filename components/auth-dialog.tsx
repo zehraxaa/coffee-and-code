@@ -10,6 +10,7 @@ import { Coffee, AlertCircle } from "lucide-react"
 import { loginUser, registerUser } from "@/lib/auth-store"
 import type { StoredUser } from "@/lib/auth-store"
 
+
 interface AuthDialogProps {
   open: boolean
   onOpenChange: (open: boolean) => void

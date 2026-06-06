@@ -9,9 +9,7 @@
 ## How to RUN?
 ### without cloning the repo, you can click this link and access the deployed version of the app. I would really like to get your feedbacks about my project, you can reach me via LinkedIn. thank you
 
-```bash
-	https://v0-coffee-and-code.vercel.app
-```
+https://v0-coffee-and-code.vercel.app
 
 ## Overview
 

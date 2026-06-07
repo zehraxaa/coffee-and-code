@@ -188,9 +188,9 @@ export function HomeView({
 
   return (
     <>
-      {/* Promo Popup — barista controls the image */}
+      {/* Promo Popup — barista controls the image; only shown when an image is set */}
       <AnimatePresence>
-        {!hasSeenPromo && (
+        {!hasSeenPromo && !!splashImageUrl && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -208,7 +208,7 @@ export function HomeView({
               </Button>
               <div className="relative aspect-[4/5] w-full overflow-hidden rounded-2xl">
                 <Image
-                  src={splashImageUrl ?? "/images/spanish-latte-promo-v2.jpg"}
+                  src={splashImageUrl}
                   alt="Coffee of the Month Promo"
                   fill
                   className="object-cover"

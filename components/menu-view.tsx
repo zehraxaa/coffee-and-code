@@ -10,6 +10,8 @@ import { useBroadcastCampaigns } from "@/hooks/use-broadcast-campaigns"
 import { useMenuItems } from "@/hooks/use-menu-items"
 import type { MenuItem } from "@/lib/menu-items"
 import { COFFEE_IMAGES } from "@/lib/coffee-images"
+import { useEffect, useState } from "react"
+import { supabase } from "@/lib/supabase"
 
 interface MenuViewProps {
   onBack: () => void
@@ -18,9 +20,45 @@ interface MenuViewProps {
   onCategoryChange?: (category: string) => void
 }
 
+// Ürün adına göre rating ortalaması ve sayısı
+type RatingMap = Record<string, { avg: number; count: number }>
+
 export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCategoryChange }: MenuViewProps) {
   const { applyDiscount } = useBroadcastCampaigns()
   const { menuItems, loading } = useMenuItems()
+  const [ratingMap, setRatingMap] = useState<RatingMap>({})
+
+  // Supabase'den tüm rated siparişleri çek, ürün bazlı grupla
+  useEffect(() => {
+    const fetchRatings = async () => {
+      const { data, error } = await supabase
+        .from("orders")
+        .select("item_name, rating")
+        .not("rating", "is", null)
+
+      if (error || !data) return
+
+      const map: Record<string, { total: number; count: number }> = {}
+      data.forEach((row: { item_name: string; rating: number }) => {
+        if (!row.item_name || !row.rating) return
+        const key = row.item_name.toLowerCase()
+        if (!map[key]) map[key] = { total: 0, count: 0 }
+        map[key].total += row.rating
+        map[key].count += 1
+      })
+
+      const result: RatingMap = {}
+      Object.entries(map).forEach(([key, { total, count }]) => {
+        result[key] = {
+          avg: Math.round((total / count) * 10) / 10,
+          count,
+        }
+      })
+      setRatingMap(result)
+    }
+
+    fetchRatings()
+  }, [])
 
   const hotMenuItems: MenuItem[] = menuItems
     .filter((item) => item.category === "hot")
@@ -54,6 +92,13 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
           item.imageUrl ||
           COFFEE_IMAGES[item.id] ||
           COFFEE_IMAGES[item.name.toLowerCase().replace(/\s+/g, "-")]
+
+        const hasBadge = item.popular || item.isNew
+        const ratingData = ratingMap[item.name.toLowerCase()]
+        const ratingLabel = ratingData
+          ? `★${ratingData.avg} (${ratingData.count})`
+          : null
+
         return (
           <Card 
             key={item.id} 
@@ -79,20 +124,35 @@ export function MenuView({ onBack, onSelectItem, selectedCategory = "hot", onCat
             </div>
             <div className="flex flex-1 flex-col">
               <h3 className="text-md font-semibold text-foreground">{item.name}</h3>
-              {item.popular && (
-                <div className="my-1">
-                  <Badge variant="secondary" className="text-[10px]">
-                    Popular
-                  </Badge>
+
+              {/* Badge satırı: popular/isNew + varsa rating yanında */}
+              {hasBadge && (
+                <div className="my-1 flex flex-wrap items-center justify-center gap-1">
+                  {item.popular && (
+                    <Badge variant="secondary" className="text-[10px]">
+                      Popular
+                    </Badge>
+                  )}
+                  {item.isNew && (
+                    <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-500 text-white">
+                      New
+                    </Badge>
+                  )}
+                  {ratingLabel && (
+                    <span className="text-[10px] font-medium text-amber-500">
+                      {ratingLabel}
+                    </span>
+                  )}
                 </div>
               )}
-              {item.isNew && (
-                <div className="my-1">
-                  <Badge className="text-[10px] bg-emerald-500 hover:bg-emerald-500 text-white">
-                    New
-                  </Badge>
-                </div>
+
+              {/* Badge yoksa rating ismin altında göster */}
+              {!hasBadge && ratingLabel && (
+                <p className="text-[10px] font-medium text-amber-500 mt-0.5">
+                  {ratingLabel}
+                </p>
               )}
+
               <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{item.description}</p>
               <div className="mt-auto pt-3">
                 <div className="flex flex-wrap items-center justify-center gap-1.5 mb-2">

@@ -327,13 +327,17 @@ export function useBroadcastOrders({
   // ── Siparişi puanla ───────────────────────────────────────────────
   const broadcastRateOrder = useCallback(
     async (orderId: string, rating: number, review: string, reviewerName?: string) => {
+      // Optimistic UI update
       setOrders((prev) =>
-        prev.map((o) => (o.id === orderId ? { ...o, rating, review, reviewerName } : o))
+        prev.map((o) => (o.id === orderId ? { ...o, rating, reviewerName } : o))
       )
+
+      // 'review' kolonu şemada yok — sadece rating ve reviewer_name güncelle
       const { error } = await supabase
         .from("orders")
-        .update({ rating, review: review || null, reviewer_name: reviewerName || null })
+        .update({ rating, reviewer_name: reviewerName || null })
         .eq("id", orderId)
+
       if (error) console.error("Error rating order:", error.message || error)
     },
     []

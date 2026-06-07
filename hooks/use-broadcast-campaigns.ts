@@ -130,6 +130,16 @@ export function useBroadcastCampaigns() {
           if (todayStr < c.startDate || todayStr > c.endDate) return false
         }
 
+        // Saat aralığı kontrolü — sadece belirtilen saatler arasında indirim aktif
+        if (c.startTime && c.endTime) {
+          const [sh, sm] = c.startTime.split(":").map(Number)
+          const [eh, em] = c.endTime.split(":").map(Number)
+          const nowMins = now.getHours() * 60 + now.getMinutes()
+          const startMins = sh * 60 + sm
+          const endMins = eh * 60 + em
+          if (nowMins < startMins || nowMins > endMins) return false
+        }
+
         return true
       })
     },

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useEffect, useState, useMemo } from "react"
 import Image from "next/image"
 import type { Campaign, Order, CoffeeOfMonth } from "@/lib/types"
-import { ALL_MENU_ITEMS } from "@/lib/menu-items"
+import { ALL_MENU_ITEMS, type MenuItem } from "@/lib/menu-items"
 import { getCoffeeImage } from "@/lib/coffee-images"
 import { supabase } from "@/lib/supabase"
 
@@ -35,6 +35,7 @@ interface HomeViewProps {
   campaigns?: Campaign[]
   orders?: Order[]
   splashImageUrl?: string | null
+  menuItems?: MenuItem[]
 }
 
 export function HomeView({
@@ -50,6 +51,7 @@ export function HomeView({
   campaigns = [],
   orders = [],
   splashImageUrl,
+  menuItems = [],
 }: HomeViewProps) {
   const totalStamps = 8
   const [currentCampaign, setCurrentCampaign] = useState(0)
@@ -161,15 +163,19 @@ export function HomeView({
     globalRatedOrders.forEach((o) => {
       if (!o.rating || !o.itemName) return
       const key = o.itemName
+
+      // Menüden silinmiş ürünleri Customer Favorites'ten çıkar
+      const itemsList = menuItems.length > 0 ? menuItems : ALL_MENU_ITEMS
+      const menuItem = itemsList.find(
+        (m) => m.name.toLowerCase() === key.toLowerCase()
+      )
+      if (!menuItem) return
+
       if (!ratingMap[key]) {
-        // Find price from menu items
-        const menuItem = ALL_MENU_ITEMS.find(
-          (m) => m.name.toLowerCase() === key.toLowerCase()
-        )
         ratingMap[key] = {
           total: 0,
           count: 0,
-          price: menuItem ? `${menuItem.price} TL` : "— TL",
+          price: `${menuItem.price} TL`,
         }
       }
       ratingMap[key].total += o.rating
@@ -195,7 +201,7 @@ export function HomeView({
       ]
     }
     return sorted
-  }, [globalRatedOrders])
+  }, [globalRatedOrders, menuItems])
 
 
   return (
@@ -475,7 +481,10 @@ export function HomeView({
           </div>
           <div className="space-y-3">
             {dynamicFavorites.map((item, idx) => {
-              const coffeeImg = getCoffeeImage(item.name)
+              const dbItem = menuItems.find(
+                (m) => m.name.toLowerCase() === item.name.toLowerCase()
+              )
+              const coffeeImg = dbItem?.imageUrl || getCoffeeImage(item.name)
               return (
                 <Card
                   key={item.name}

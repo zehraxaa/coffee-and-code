@@ -62,6 +62,45 @@ export function useMenuItems() {
         const mapped = data.map(mapRow)
         cachedMenuItems = mapped
         setMenuItems(mapped)
+
+        // Seed any static menu items that are not in the DB yet
+        const dbIds = new Set(data.map((row) => row.id))
+        const missingItems = ALL_MENU_ITEMS.filter((item) => !dbIds.has(item.id))
+
+        if (missingItems.length > 0) {
+          const maxOrder = data.reduce((max, row) => Math.max(max, (row.sort_order as number) ?? 0), -1)
+          const newSeed = missingItems.map((item, index) => ({
+            id: item.id,
+            name: item.name,
+            description: item.description,
+            price: item.price,
+            popular: item.popular ?? false,
+            category: item.category,
+            image_url: null,
+            sort_order: maxOrder + 1 + index,
+            customizations: item.customizations || {
+              strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false
+            },
+          }))
+
+          const { error: seedErr } = await supabase
+            .from("menu_items")
+            .upsert(newSeed, { onConflict: "id" })
+          if (seedErr) {
+            console.warn("Could not seed missing menu_items:", seedErr.message)
+          } else {
+            // Re-fetch to get correct state
+            const { data: refreshedData } = await supabase
+              .from("menu_items")
+              .select("*")
+              .order("sort_order", { ascending: true })
+            if (refreshedData) {
+              const refreshedMapped = refreshedData.map(mapRow)
+              cachedMenuItems = refreshedMapped
+              setMenuItems(refreshedMapped)
+            }
+          }
+        }
       } else {
         // Seed from static data preserving original order
         const seed = ALL_MENU_ITEMS.map((item, index) => ({

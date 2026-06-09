@@ -70,7 +70,8 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
   const pastOrders = orders.filter((order) => order.status === "completed" || order.status === "cancelled")
 
   const renderOrderCard = (order: Order, index: number) => {
-    const activeItem = menuItems.find(i => i.name === order.itemName)
+    const activeItem = menuItems.find(i => i.name.toLowerCase() === (order.itemName || "").toLowerCase())
+    const isItemOnMenu = !!activeItem
     const coffeeImg = activeItem?.imageUrl || getCoffeeImage(order.itemName || "")
     return (
     <motion.div
@@ -212,7 +213,7 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
           </div>
         )}
 
-        {order.status === "completed" && !order.rating && (
+        {order.status === "completed" && !order.rating && isItemOnMenu && (
           <Button
             className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => onRateOrder(order.id)}
@@ -222,7 +223,7 @@ export function ActivityView({ orders, onRateOrder, onReorder }: ActivityViewPro
         )}
 
         {/* Re-order Button */}
-        {order.status === "completed" && onReorder && (
+        {order.status === "completed" && onReorder && isItemOnMenu && (
           <Button
             className="mt-2 w-full bg-primary text-primary-foreground hover:bg-primary/90"
             onClick={() => onReorder(order)}

@@ -135,6 +135,15 @@ export const ICED_MENU_ITEMS: MenuItem[] = [
     category: "iced",
     customizations: { strength: true, sugar: true, shot: true, milk: true, size: true, syrup: true, chocolate: true, teaAroma: false },
   },
+  {
+    id: "iced-matcha-latte",
+    name: "Iced Matcha Latte",
+    description: "Premium Japanese Uji matcha with fresh milk and ice",
+    price: 150,
+    popular: true,
+    category: "iced",
+    customizations: { strength: false, sugar: true, shot: false, milk: true, size: true, syrup: true, chocolate: false, teaAroma: false },
+  },
 ]
 
 export const ALL_MENU_ITEMS: MenuItem[] = [...HOT_MENU_ITEMS, ...ICED_MENU_ITEMS]

@@ -28,6 +28,7 @@ export const COFFEE_IMAGES: Record<string, string> = {
   "iced-americano":     "/images/Iced-Americano.jpg",
   "cold-brew":          "/images/cold-brew.png",
   "iced-mocha":         "/images/iced-mocha.jpg",
+  "iced-matcha-latte":  "/images/iced-matcha-latte.png",
 }
 
 export function getCoffeeImage(itemName: string): string | undefined {

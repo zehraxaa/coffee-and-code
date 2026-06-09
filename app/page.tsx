@@ -362,6 +362,7 @@ export default function Home() {
               campaigns={campaigns}
               orders={orders.filter((o) => !o.isGuest || o.id === selectedOrderId)}
               splashImageUrl={splashImageUrl}
+              menuItems={menuItems}
             />
           )}
           {activeTab === "campaigns" && (

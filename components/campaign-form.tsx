@@ -22,6 +22,8 @@ import {
   Sparkles,
   UploadCloud,
   AlignLeft,
+  ChevronUp,
+  ChevronDown,
 } from "lucide-react"
 import { useMenuItems } from "@/hooks/use-menu-items"
 import type { Campaign } from "@/lib/types"
@@ -34,6 +36,7 @@ interface CampaignFormProps {
   onCreateCampaign: (campaign: Campaign) => void
   onUpdateCampaign?: (campaign: Campaign) => void
   onDeleteCampaign: (campaignId: string) => void
+  onReorderCampaign?: (campaignId: string, direction: "up" | "down") => Promise<void>
   /** URL of the promo popup image (the X-closeable banner shown after splash) */
   splashImageUrl?: string | null
   onUpdateSplashImage?: (url: string | null) => void
@@ -68,6 +71,7 @@ export function CampaignForm({
   onCreateCampaign,
   onUpdateCampaign,
   onDeleteCampaign,
+  onReorderCampaign,
   splashImageUrl,
   onUpdateSplashImage,
 }: CampaignFormProps) {
@@ -79,6 +83,7 @@ export function CampaignForm({
   const [endDate, setEndDate] = useState("")
   const [startTime, setStartTime] = useState("08:00")
   const [endTime, setEndTime] = useState("22:00")
+  const [activeDays, setActiveDays] = useState<number[]>([])
   const [selectedItemIds, setSelectedItemIds] = useState<string[]>([])
   const [discountPercent, setDiscountPercent] = useState("")
   const [imagePreview, setImagePreview] = useState<string | null>(null)
@@ -86,6 +91,7 @@ export function CampaignForm({
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
+  const [reorderingId, setReorderingId] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Promo popup image state
@@ -219,6 +225,7 @@ export function CampaignForm({
       endDate,
       startTime,
       endTime,
+      activeDays: activeDays.length > 0 ? [...activeDays].sort() : undefined,
       applicableItemIds: selectedItemIds,
       discountPercent: discountPercent.trim() === "" ? 0 : parseFloat(discountPercent),
       imageUrl: finalImageUrl ?? undefined,
@@ -243,6 +250,7 @@ export function CampaignForm({
     setEndDate("")
     setStartTime("08:00")
     setEndTime("22:00")
+    setActiveDays([])
     setSelectedItemIds([])
     setDiscountPercent("")
     setImagePreview(null)
@@ -260,6 +268,7 @@ export function CampaignForm({
     setEndDate(c.endDate || "")
     setStartTime(c.startTime || "08:00")
     setEndTime(c.endTime || "22:00")
+    setActiveDays(c.activeDays || [])
     setSelectedItemIds(c.applicableItemIds)
     setDiscountPercent(c.discountPercent === 0 ? "" : c.discountPercent.toString())
     setImagePreview(c.imageUrl || null)
@@ -268,7 +277,19 @@ export function CampaignForm({
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
-  const activeCampaigns = campaigns.filter((c) => new Date(c.expiresAt) > new Date())
+  const activeCampaigns = campaigns
+    .filter((c) => new Date(c.expiresAt) > new Date())
+    .sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0))
+
+  async function handleReorder(id: string, direction: "up" | "down") {
+    if (!onReorderCampaign) return
+    setReorderingId(id)
+    try {
+      await onReorderCampaign(id, direction)
+    } finally {
+      setReorderingId(null)
+    }
+  }
 
   return (
     <div className="space-y-8">
@@ -333,19 +354,48 @@ export function CampaignForm({
                     <Calendar className="h-3 w-3" />
                     <span>{formatDateRange(c)}</span>
                   </div>
+                  {c.activeDays && c.activeDays.length > 0 && (
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <span className="font-medium">Days:</span>
+                      <span>
+                        {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+                          .filter((_, i) => c.activeDays!.includes(i))
+                          .join(", ")}
+                      </span>
+                    </div>
+                  )}
                   <div className="flex items-center gap-1 text-xs text-amber-600 dark:text-amber-400">
                     <Clock className="h-3 w-3" />
                     <span>{formatTimeLeft(c.expiresAt)}</span>
                   </div>
                 </div>
                 <div className="flex flex-col gap-1">
+                  {/* Reorder up/down */}
+                  {onReorderCampaign && (
+                    <div className="flex flex-col gap-0.5">
+                      <button
+                        onClick={() => handleReorder(c.id, "up")}
+                        disabled={activeCampaigns.indexOf(c) === 0 || reorderingId === c.id}
+                        className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronUp className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleReorder(c.id, "down")}
+                        disabled={activeCampaigns.indexOf(c) === activeCampaigns.length - 1 || reorderingId === c.id}
+                        className="flex h-6 w-6 items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted disabled:opacity-20 disabled:cursor-not-allowed transition-colors"
+                      >
+                        <ChevronDown className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  )}
                   <Button
                     size="icon"
                     variant="ghost"
                     className="shrink-0 h-8 w-8 text-muted-foreground hover:text-primary hover:bg-primary/10"
                     onClick={() => handleEdit(c)}
                   >
-                    <CheckSquare className="h-4 w-4" /> {/* Use CheckSquare or Edit if available */}
+                    <CheckSquare className="h-4 w-4" />
                   </Button>
                   <Button
                     size="icon"
@@ -483,10 +533,65 @@ export function CampaignForm({
               {startDate.split("-").reverse().join("/")} {startTime}
               {" → "}
               {endDate.split("-").reverse().join("/")} {endTime}
+              {activeDays.length > 0 && (
+                <span className="block mt-0.5">
+                  <span className="font-medium text-foreground">Days: </span>
+                  {["Sun","Mon","Tue","Wed","Thu","Fri","Sat"]
+                    .filter((_, i) => activeDays.includes(i))
+                    .join(", ")}
+                </span>
+              )}
               <span className="block mt-0.5 text-[10px] opacity-70">
-                Campaign is visible to customers throughout this period; discounts apply only during the selected hours each day.
+                Campaign is visible to customers throughout this period; discounts apply only during the selected hours{activeDays.length > 0 ? " and days" : ""} each day.
               </span>
             </div>
+          )}
+        </div>
+
+        {/* Active Days Picker */}
+        <div className="space-y-3">
+          <Label className="flex items-center gap-1.5">
+            <Calendar className="h-3.5 w-3.5" />
+            Discount Days
+            <span className="text-muted-foreground font-normal text-xs">(Optional – leave empty for all days)</span>
+          </Label>
+          <div className="flex gap-1.5 flex-wrap">
+            {([
+              { label: "Sun", value: 0 },
+              { label: "Mon", value: 1 },
+              { label: "Tue", value: 2 },
+              { label: "Wed", value: 3 },
+              { label: "Thu", value: 4 },
+              { label: "Fri", value: 5 },
+              { label: "Sat", value: 6 },
+            ] as const).map(({ label, value }) => {
+              const selected = activeDays.includes(value)
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() =>
+                    setActiveDays((prev) =>
+                      prev.includes(value)
+                        ? prev.filter((d) => d !== value)
+                        : [...prev, value]
+                    )
+                  }
+                  className={`flex h-9 w-12 items-center justify-center rounded-lg border text-xs font-semibold transition-all ${
+                    selected
+                      ? "border-primary bg-primary text-primary-foreground shadow-sm"
+                      : "border-border text-muted-foreground hover:border-primary/50 hover:bg-muted/50"
+                  }`}
+                >
+                  {label}
+                </button>
+              )
+            })}
+          </div>
+          {activeDays.length === 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              No days selected — discount will be active every day within the date range.
+            </p>
           )}
         </div>
 

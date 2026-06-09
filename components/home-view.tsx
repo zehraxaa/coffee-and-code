@@ -3,7 +3,7 @@
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Coffee, Star, ChevronRight, Sparkles, X } from "lucide-react"
+import { Coffee, Star, ChevronRight, Sparkles, X, Percent } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { useEffect, useState, useMemo } from "react"
 import Image from "next/image"
@@ -26,6 +26,7 @@ interface HomeViewProps {
   hasSeenPromo: boolean
   onPromoClosed: () => void
   onViewFullMenu: () => void
+  onViewAllCampaigns: () => void
   loyaltyStamps: number
   freeCoffeeCode?: string | null
   onRedeemFreeCoffee?: () => void
@@ -40,6 +41,7 @@ export function HomeView({
   hasSeenPromo,
   onPromoClosed,
   onViewFullMenu,
+  onViewAllCampaigns,
   loyaltyStamps,
   freeCoffeeCode,
   onRedeemFreeCoffee,
@@ -51,7 +53,6 @@ export function HomeView({
 }: HomeViewProps) {
   const totalStamps = 8
   const [currentCampaign, setCurrentCampaign] = useState(0)
-  const [showAllCampaigns, setShowAllCampaigns] = useState(false)
 
   // Load barista-set coffee of the month
   const [coffeeOfMonth, setCoffeeOfMonth] = useState<CoffeeOfMonth>(DEFAULT_COFFEE)
@@ -105,12 +106,12 @@ export function HomeView({
 
 
   useEffect(() => {
-    if (activeCampaigns.length === 0 || showAllCampaigns) return
+    if (activeCampaigns.length === 0) return
     const interval = setInterval(() => {
       setCurrentCampaign((prev) => (prev + 1) % activeCampaigns.length)
     }, 5000)
     return () => clearInterval(interval)
-  }, [activeCampaigns.length, showAllCampaigns])
+  }, [activeCampaigns.length])
 
   // ── Dynamic Customer Favorites (Global) ──────────────────────────────
   const [globalRatedOrders, setGlobalRatedOrders] = useState<Order[]>([])
@@ -301,71 +302,19 @@ export function HomeView({
         {/* Campaigns Slider */}
         <div>
           <button
-            className="mb-3 flex items-center gap-2 group cursor-pointer bg-transparent border-none p-0"
-            onClick={() => setShowAllCampaigns((prev) => !prev)}
-            aria-expanded={showAllCampaigns}
+            className="mb-3 flex items-center gap-2 cursor-pointer bg-transparent border-none p-0"
+            onClick={onViewAllCampaigns}
+            aria-label="View all campaigns"
           >
             <h2 className="text-lg font-semibold text-foreground">Current Campaigns</h2>
-            <motion.span
-              animate={{ rotate: showAllCampaigns ? 90 : 0 }}
-              transition={{ duration: 0.25 }}
-              className="inline-flex items-center text-foreground"
-            >
-              <ChevronRight className="h-5 w-5" />
-            </motion.span>
+            <ChevronRight className="h-5 w-5 text-foreground" />
           </button>
 
           {activeCampaigns.length === 0 ? (
             <div className="rounded-xl border border-border bg-card p-6 text-center text-muted-foreground text-sm">
               No active campaigns at the moment. Check back later!
             </div>
-          ) : showAllCampaigns ? (
-            /* Expanded: all campaigns stacked vertically */
-            <AnimatePresence>
-              <motion.div
-                key="all-campaigns"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                className="space-y-3"
-              >
-                {activeCampaigns.map((campaign, index) => (
-                  <motion.div
-                    key={campaign.id ?? index}
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.07 }}
-                    className="relative h-[160px] w-full"
-                  >
-                    <Card
-                      className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden rounded-2xl ${
-                        campaign.imageUrl ? "bg-transparent" : "bg-gradient-to-br from-primary to-accent"
-                      }`}
-                    >
-                      {campaign.imageUrl && (
-                        <div className="absolute inset-0 rounded-2xl overflow-hidden">
-                          <Image
-                            src={campaign.imageUrl}
-                            alt={campaign.title}
-                            fill
-                            className="object-cover rounded-2xl"
-                          />
-                          <div className="absolute inset-0 bg-black/20 rounded-2xl" />
-                        </div>
-                      )}
-                      <div className="relative z-10">
-                        <h3 className="text-xl font-bold">{campaign.title}</h3>
-                        {campaign.description && (
-                          <p className="mt-1 text-sm opacity-90">{campaign.description}</p>
-                        )}
-                      </div>
-                    </Card>
-                  </motion.div>
-                ))}
-              </motion.div>
-            </AnimatePresence>
           ) : (
-            /* Default: rotating slider */
             <>
               <div className="relative h-[160px] w-full">
                 <AnimatePresence mode="wait">
@@ -379,11 +328,10 @@ export function HomeView({
                   >
                     {activeCampaigns[currentCampaign] && (
                       <Card
-                        className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden rounded-2xl ${
-                          activeCampaigns[currentCampaign].imageUrl
-                            ? "bg-transparent"
-                            : "bg-gradient-to-br from-primary to-accent"
-                        }`}
+                        className={`h-full w-full p-6 border-0 text-primary-foreground shadow-lg flex flex-col justify-center overflow-hidden rounded-2xl ${activeCampaigns[currentCampaign].imageUrl
+                          ? "bg-transparent"
+                          : "bg-gradient-to-br from-primary to-accent"
+                          }`}
                       >
                         {activeCampaigns[currentCampaign].imageUrl && (
                           <div className="absolute inset-0 rounded-2xl overflow-hidden">
@@ -396,6 +344,18 @@ export function HomeView({
                             <div className="absolute inset-0 bg-black/20 rounded-2xl" />
                           </div>
                         )}
+                        
+                        {/* Discount badge */}
+                        {activeCampaigns[currentCampaign].discountPercent > 0 && (
+                          <div className="absolute top-3 right-3 z-20">
+                            <div className="flex items-center gap-1 rounded-full bg-white/95 dark:bg-black/80 px-2.5 py-1 shadow-sm backdrop-blur-sm">
+                              <Percent className="h-3 w-3 text-primary" />
+                              <span className="text-[10px] font-bold text-primary">
+                                {activeCampaigns[currentCampaign].discountPercent}% OFF
+                              </span>
+                            </div>
+                          </div>
+                        )}
                         <div className="relative z-10">
                           <h3 className="text-xl font-bold">
                             {activeCampaigns[currentCampaign].title}
@@ -406,6 +366,7 @@ export function HomeView({
                             </p>
                           )}
                         </div>
+                        
                       </Card>
                     )}
                   </motion.div>
@@ -415,9 +376,8 @@ export function HomeView({
                 {activeCampaigns.map((_, index) => (
                   <div
                     key={index}
-                    className={`h-2 w-2 rounded-full transition-colors ${
-                      index === currentCampaign ? "bg-primary" : "bg-muted"
-                    }`}
+                    className={`h-2 w-2 rounded-full transition-colors ${index === currentCampaign ? "bg-primary" : "bg-muted"
+                      }`}
                   />
                 ))}
               </div>
@@ -549,8 +509,8 @@ export function HomeView({
                                 <Star
                                   key={s}
                                   className={`h-3 w-3 ${s <= Math.round(item.rating!)
-                                      ? "fill-accent text-accent"
-                                      : "fill-muted text-muted-foreground/30"
+                                    ? "fill-accent text-accent"
+                                    : "fill-muted text-muted-foreground/30"
                                     }`}
                                 />
                               ))}

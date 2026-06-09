@@ -19,6 +19,7 @@ import { OrderReadyNotification } from "@/components/order-ready-notification"
 import { StoresView } from "@/components/stores-view"
 import { SettingsDialog } from "@/components/settings-dialog"
 import { LoyaltyPromptDialog } from "@/components/loyalty-prompt-dialog"
+import { CampaignsView } from "@/components/campaigns-view"
 import { Switch } from "@/components/ui/switch"
 import { Label } from "@/components/ui/label"
 import { useToast } from "@/hooks/use-toast"
@@ -72,7 +73,10 @@ export default function Home() {
         const { data: { session }, error } = await supabase.auth.getSession()
 
         if (error) {
+          // Token yenileme hatası varsa bozuk token'ı temizle
           clearSupabaseAuthCache()
+          // Sessizce local oturumu da kapat (sunucu çağrısı yapmadan)
+          await supabase.auth.signOut({ scope: 'local' }).catch(() => {})
           return
         }
 
@@ -333,6 +337,7 @@ export default function Home() {
                 setPrefillOrder(null)
                 setActiveTab("menu")
               }}
+              onViewAllCampaigns={() => setActiveTab("campaigns")}
               loyaltyStamps={loyaltyStamps}
               freeCoffeeCode={freeCoffeeCode}
               onRedeemFreeCoffee={async () => {
@@ -357,6 +362,12 @@ export default function Home() {
               campaigns={campaigns}
               orders={orders.filter((o) => !o.isGuest || o.id === selectedOrderId)}
               splashImageUrl={splashImageUrl}
+            />
+          )}
+          {activeTab === "campaigns" && (
+            <CampaignsView
+              campaigns={campaigns}
+              onBack={() => setActiveTab("home")}
             />
           )}
           {activeTab === "order" && (

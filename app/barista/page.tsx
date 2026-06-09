@@ -76,6 +76,7 @@ export default function BaristaPage() {
     broadcastUpdateCampaign,
     broadcastDeleteCampaign,
     broadcastUpdateSplashImage,
+    reorderCampaign,
   } = useBroadcastCampaigns()
   const { toast } = useToast()
   const [activeSection, setActiveSection] = useState("orders")
@@ -477,6 +478,7 @@ export default function BaristaPage() {
             onCreateCampaign={broadcastCreateCampaign}
             onUpdateCampaign={broadcastUpdateCampaign}
             onDeleteCampaign={broadcastDeleteCampaign}
+            onReorderCampaign={reorderCampaign}
             splashImageUrl={splashImageUrl}
             onUpdateSplashImage={broadcastUpdateSplashImage}
           />
